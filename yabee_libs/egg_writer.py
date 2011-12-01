@@ -5,9 +5,9 @@
 import bpy, os, sys, shutil
 from mathutils import *
 from math import pi
-import yabee_libs.tbn_generator
-from yabee_libs.texture_processor import SimpleTextures, TextureBaker
-from yabee_libs.utils import convertFileNameToPanda, save_image
+import io_scene_egg.yabee_libs.tbn_generator
+from io_scene_egg.yabee_libs.texture_processor import SimpleTextures, TextureBaker
+from io_scene_egg.yabee_libs.utils import convertFileNameToPanda, save_image
 #from yabee_libs.tbn_generator import TBNGenerator
 #import imp
 #imp.reload(TBNGenerator)
@@ -512,7 +512,9 @@ class EGGMeshObjectData(EGGBaseObjectData):
             #if [uv for uv in self.obj_ref.data.uv_textures if uv.active]:
             if self.obj_ref.data.uv_textures:
                 for btype, params in BAKE_LAYERS.items():
-                    if params[1]:
+                    if len(params) == 2:
+                        params = (params[0], params[0], params[1])
+                    if params[2]:
                         attributes.append('<TRef> { %s }' % (self.obj_ref.name + '_' + btype))
         return attributes
     

@@ -4,7 +4,7 @@
 """
 import bpy
 if __name__ != '__main__':
-    from yabee_libs.utils import convertFileNameToPanda, save_image
+    from io_scene_egg.yabee_libs.utils import convertFileNameToPanda, save_image
 
 BAKE_TYPES = {'diffuse': ('TEXTURE', 'MODULATE'),
               'normal': ('NORMALS', 'NORMAL'),
@@ -102,12 +102,12 @@ class TextureBaker():
                     uvd = active_uv.data[id]
                     uvd.use_image, uvd.image = uvs
 
-    def _prepare_images(self, btype, tsize):
+    def _prepare_images(self, btype, tsizex, tsizey):
         assigned_data = {}
         for obj in self.obj_list:
             if obj.type == 'MESH' and self.get_active_uv(obj):
                 self._save_obj_props(obj)
-                img = bpy.data.images.new(obj.name + '_' + btype, tsize, tsize)
+                img = bpy.data.images.new(obj.name + '_' + btype, tsizex, tsizey)
                 self.rendered_images[obj.name] = img.name
                 active_uv = self.get_active_uv(obj)
                 active_uv_idx = obj.data.uv_textures[:].index(active_uv)
@@ -150,12 +150,14 @@ class TextureBaker():
     def bake(self, bake_layers):
         tex_list = {}
         for btype, params in bake_layers.items():
-            if params[1]:
+            if len(params) == 2:
+                params = (params[0], params[0], params[1])
+            if params[2]:
                 if btype in BAKE_TYPES.keys():
                     paths = None
                     if len(self.obj_list) == 0:
                         return False
-                    assigned_data = self._prepare_images(btype, params[0])
+                    assigned_data = self._prepare_images(btype, params[0], params[1])
                     if assigned_data:
                         old_selected =  bpy.context.selected_objects[:]
                         #bpy.ops.object.select_all(action = 'DESELECT')

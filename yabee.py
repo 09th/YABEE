@@ -67,27 +67,29 @@ if __name__ == '__main__':
     try:
         for text in bpy.data.texts:
             dir = os.path.dirname(text.filepath)
+            dir = os.path.abspath(dir + '\\..')
             if dir not in sys.path:
                 sys.path.append(os.path.abspath(dir))
     except:
         print('Error while trying to add a paths in the sys.path')
         
-    import yabee_libs.egg_writer
+    #import yabee_libs.egg_writer
+    from io_scene_egg.yabee_libs import egg_writer
     print('RELOADING MODULES')
     import imp
-    imp.reload(yabee_libs)
-    imp.reload(yabee_libs.egg_writer)
-    imp.reload(yabee_libs.tbn_generator)
-    imp.reload(yabee_libs.texture_processor)
+    #imp.reload(yabee_libs)
+    imp.reload(egg_writer)
+    #imp.reload(yabee_libs.tbn_generator)
+    #imp.reload(yabee_libs.texture_processor)
 
-    yabee_libs.egg_writer.write_out(FILE_PATH, 
-                                    ANIMATIONS,
-                                    EXPORT_UV_IMAGE_AS_TEXTURE, 
-                                    SEPARATE_ANIM_FILE, 
-                                    ANIM_ONLY,
-                                    COPY_TEX_FILES, 
-                                    TEX_PATH, 
-                                    FLOATING_POINT_ACCURACY,
-                                    CALC_TBS,
-                                    TEXTURE_PROCESSOR,
-                                    BAKE_LAYERS)
+    egg_writer.write_out(FILE_PATH, 
+                        ANIMATIONS,
+                        EXPORT_UV_IMAGE_AS_TEXTURE, 
+                        SEPARATE_ANIM_FILE, 
+                        ANIM_ONLY,
+                        COPY_TEX_FILES, 
+                        TEX_PATH, 
+                        FLOATING_POINT_ACCURACY,
+                        CALC_TBS,
+                        TEXTURE_PROCESSOR,
+                        BAKE_LAYERS)
