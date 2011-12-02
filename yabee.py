@@ -67,21 +67,21 @@ if __name__ == '__main__':
     try:
         for text in bpy.data.texts:
             dir = os.path.dirname(text.filepath)
-            dir = os.path.abspath(dir + '\\..')
+            if os.name == 'nt':
+                dir = os.path.abspath(dir + '\\..')
+            else:
+                dir = os.path.abspath(dir + '/..')
             if dir not in sys.path:
                 sys.path.append(os.path.abspath(dir))
     except:
         print('Error while trying to add a paths in the sys.path')
         
-    #import yabee_libs.egg_writer
-    from io_scene_egg.yabee_libs import egg_writer
+    import io_scene_egg.yabee_libs.egg_writer
+    #from io_scene_egg.yabee_libs import egg_writer
     print('RELOADING MODULES')
     import imp
-    #imp.reload(yabee_libs)
-    imp.reload(egg_writer)
-    #imp.reload(yabee_libs.tbn_generator)
-    #imp.reload(yabee_libs.texture_processor)
-
+    imp.reload(io_scene_egg.yabee_libs.egg_writer)
+    egg_writer = io_scene_egg.yabee_libs.egg_writer
     egg_writer.write_out(FILE_PATH, 
                         ANIMATIONS,
                         EXPORT_UV_IMAGE_AS_TEXTURE, 

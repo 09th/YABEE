@@ -8,6 +8,8 @@ from math import pi
 import io_scene_egg.yabee_libs.tbn_generator
 from io_scene_egg.yabee_libs.texture_processor import SimpleTextures, TextureBaker
 from io_scene_egg.yabee_libs.utils import convertFileNameToPanda, save_image
+import imp
+imp.reload(io_scene_egg.yabee_libs.texture_processor)
 #from yabee_libs.tbn_generator import TBNGenerator
 #import imp
 #imp.reload(TBNGenerator)
@@ -526,8 +528,10 @@ class EGGMeshObjectData(EGGBaseObjectData):
         
         @return: list of polygon's attributes.
         """
-        if face.material_index < len(bpy.data.materials):
-            mat = bpy.data.materials[face.material_index]
+        #if face.material_index < len(bpy.data.materials):
+        #    mat = bpy.data.materials[face.material_index]
+        if face.material_index < len(self.obj_ref.data.materials):
+            mat = self.obj_ref.data.materials[face.material_index]
             attributes.append('<MRef> { %s }' % mat.name)
         return attributes
     
@@ -555,8 +559,12 @@ class EGGMeshObjectData(EGGBaseObjectData):
         
         @return: list of polygon's attributes.
         """
-        if [uv_face.data[face.index] for uv_face in self.obj_ref.data.uv_textures if uv_face.data[face.index].use_twoside]:
-            attributes.append('<BFace> { 1 }')
+        #if [uv_face.data[face.index] for uv_face in self.obj_ref.data.uv_textures if uv_face.data[face.index].use_twoside]:
+        #    attributes.append('<BFace> { 1 }')
+        if face.material_index < len(self.obj_ref.data.materials):
+            print('+++', face.material_index, self.obj_ref.data.materials[face.material_index].game_settings.use_backface_culling)
+            if not self.obj_ref.data.materials[face.material_index].game_settings.use_backface_culling:
+                attributes.append('<BFace> { 1 }')
         return attributes
         
     def collect_poly_vertexref(self, face, attributes):
@@ -873,8 +881,9 @@ def get_used_materials():
     for obj in bpy.context.selected_objects:
         if obj.type == 'MESH':
             for f in obj.data.faces:
-                if f.material_index < len(bpy.data.materials):
-                    m_list.append(f.material_index)
+                #if f.material_index < len(bpy.data.materials):
+                if f.material_index < len(obj.data.materials):
+                    m_list.append(obj.data.materials[f.material_index].name)
     return set(m_list)
 
 

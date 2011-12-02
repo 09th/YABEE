@@ -29,15 +29,15 @@ class SimpleTextures():
                 if self.uv_img_as_texture:
                     for num, uv in enumerate(obj.data.uv_textures):
                         for f in uv.data:
-                            if f.use_image:
-                                if f.image.source == 'FILE':
-                                    if not f.image.name in tex_list:
-                                        name = uv.name
-                                        if num == 0: name = ''
-                                        t_path = bpy.path.abspath(f.image.filepath)
-                                        #if self.copy_tex:
-                                        #    t_path = save_image(f.image)
-                                        tex_list[f.image.name] = (name, t_path, 'MODULATE')
+                            #if f.use_image:
+                            if f.image.source == 'FILE':
+                                if not f.image.name in tex_list:
+                                    name = uv.name
+                                    if num == 0: name = ''
+                                    t_path = bpy.path.abspath(f.image.filepath)
+                                    #if self.copy_tex:
+                                    #    t_path = save_image(f.image)
+                                    tex_list[f.image.name] = (name, t_path, 'MODULATE')
                 # General textures
                 for f in obj.data.faces:
                     if f.material_index < len(bpy.data.materials):
@@ -90,7 +90,8 @@ class TextureBaker():
         active_uv = self.get_active_uv(obj)
         if active_uv:
             for uvd in active_uv.data:
-                props['uvs'].append((uvd.use_image, uvd.image))
+                #props['uvs'].append((uvd.use_image, uvd.image))
+                props['uvs'].append(uvd.image)
         self.saved_objs[obj.name] = props
         
     def _restore_obj_props(self, obj):
@@ -100,7 +101,8 @@ class TextureBaker():
             if active_uv:
                 for id, uvs in enumerate(props['uvs']):
                     uvd = active_uv.data[id]
-                    uvd.use_image, uvd.image = uvs
+                    #uvd.use_image, uvd.image = uvs
+                    uvd.image = uvs
 
     def _prepare_images(self, btype, tsizex, tsizey):
         assigned_data = {}
@@ -113,7 +115,7 @@ class TextureBaker():
                 active_uv_idx = obj.data.uv_textures[:].index(active_uv)
                 if active_uv:
                     for uvd in active_uv.data:
-                        uvd.use_image = True
+                        #uvd.use_image = True
                         uvd.image = img
                     assigned_data[obj.name + '_' + btype] = (active_uv, img, active_uv_idx, BAKE_TYPES[btype][1])
                 else:

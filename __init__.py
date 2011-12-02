@@ -1,8 +1,8 @@
 bl_info = {
     "name": "Panda3d EGG format",
     "author": "Andrey (Ninth) Arbuzov",
-    "blender": (2, 5, 9),
-    "api": 39307,
+    "blender": (2, 6, 0),
+    "api": 41226,
     "location": "File > Import-Export",
     "description": ("Export to Panda3D EGG: meshes, uvs, materials, textures, "
                     "armatures, animation and curves"),
