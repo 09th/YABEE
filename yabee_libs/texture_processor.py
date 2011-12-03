@@ -18,6 +18,8 @@ class SimpleTextures():
         self.obj_list = obj_list[:]
         self.uv_img_as_texture = uv_img_as_texture
         self.copy_tex = copy_tex
+        self.file_path = file_path
+        self.tex_path = tex_path
         
     def get_used_textures(self):
         """ Collect images from the UV images and Material texture slots 
@@ -35,8 +37,8 @@ class SimpleTextures():
                                     name = uv.name
                                     if num == 0: name = ''
                                     t_path = bpy.path.abspath(f.image.filepath)
-                                    #if self.copy_tex:
-                                    #    t_path = save_image(f.image)
+                                    if self.copy_tex:
+                                        t_path = save_image(f.image, self.file_path, self.tex_path)
                                     tex_list[f.image.name] = (name, t_path, 'MODULATE')
                 # General textures
                 for f in obj.data.faces:
@@ -61,8 +63,8 @@ class SimpleTextures():
                                                 if tex.use_map_specular:
                                                     envtype = 'GLOSS'
                                                 t_path = bpy.path.abspath(tex.texture.image.filepath)
-                                                #if self.copy_tex:
-                                                #    t_path = save_image(tex.texture.image)
+                                                if self.copy_tex:
+                                                    t_path = save_image(tex.texture.image, self.file_path, self.tex_path)
                                                 tex_list[tex.texture.name] = (uv_name, t_path, envtype)
                                             #except:
                                             #    print('ERROR: can\'t get texture image on %s.' % tex.texture.name)

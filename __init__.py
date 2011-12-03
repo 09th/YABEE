@@ -13,7 +13,7 @@ bl_info = {
 
 if "bpy" in locals():
     import imp
-    imp.reload(egg_writer)
+    imp.reload(io_scene_egg.yabee_libs.egg_writer)
 
 import bpy
 from bpy_extras.io_utils import ExportHelper
@@ -144,7 +144,8 @@ class YABEEProperty(bpy.types.PropertyGroup):
         layout.row().prop(self, 'opt_anim_only')
         layout.row().prop(self, 'opt_separate_anim_files')
         if not self.opt_anim_only:
-            layout.row().prop(self, 'opt_export_uv_as_texture')
+            if self.opt_tex_proc == 'SIMPLE':
+                layout.row().prop(self, 'opt_export_uv_as_texture')
             if self.opt_copy_tex_files:
                 box = layout.box()
                 box.row().prop(self, 'opt_copy_tex_files')
@@ -298,14 +299,9 @@ class ExportPanda3DEGG(bpy.types.Operator, ExportHelper):
 
     def execute(self, context):
         #return write_some_data(context, self.filepath, self.use_setting)
-        #from . import yabee_libs
-        from io_scene_egg.yabee_libs import egg_writer
-        #print(self.filepath, 
-        #      context.scene.yabee_settings.opt_anim_list.get_anim_dict(),
-        #      context.scene.yabee_settings.get_bake_dict()
-        #      )
+        import io_scene_egg.yabee_libs.egg_writer
         sett = context.scene.yabee_settings
-        egg_writer.write_out(self.filepath, 
+        io_scene_egg.yabee_libs.egg_writer.write_out(self.filepath, 
                             sett.opt_anim_list.get_anim_dict(),
                             sett.opt_export_uv_as_texture, 
                             sett.opt_separate_anim_files, 

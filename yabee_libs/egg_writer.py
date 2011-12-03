@@ -497,9 +497,9 @@ class EGGMeshObjectData(EGGBaseObjectData):
         if TEXTURE_PROCESSOR == 'SIMPLE':
             if EXPORT_UV_IMAGE_AS_TEXTURE:
                 for uv_tex in self.obj_ref.data.uv_textures:
-                    if uv_tex.data[face.index].use_image:
-                        if uv_tex.data[face.index].image.source == 'FILE':
-                            attributes.append('<TRef> { %s }' % uv_tex.data[face.index].image.name)
+                    #if uv_tex.data[face.index].use_image:
+                    if uv_tex.data[face.index].image.source == 'FILE':
+                        attributes.append('<TRef> { %s }' % uv_tex.data[face.index].image.name)
             if face.material_index < len(bpy.data.materials):
                 mat = bpy.data.materials[face.material_index]
                 tex_idx = 0
@@ -562,7 +562,7 @@ class EGGMeshObjectData(EGGBaseObjectData):
         #if [uv_face.data[face.index] for uv_face in self.obj_ref.data.uv_textures if uv_face.data[face.index].use_twoside]:
         #    attributes.append('<BFace> { 1 }')
         if face.material_index < len(self.obj_ref.data.materials):
-            print('+++', face.material_index, self.obj_ref.data.materials[face.material_index].game_settings.use_backface_culling)
+            #print('+++', face.material_index, self.obj_ref.data.materials[face.material_index].game_settings.use_backface_culling)
             if not self.obj_ref.data.materials[face.material_index].game_settings.use_backface_culling:
                 attributes.append('<BFace> { 1 }')
         return attributes

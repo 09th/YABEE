@@ -2,7 +2,7 @@
     Part of the YABEE
     rev 1
 """
-import bpy, os, sys
+import bpy, os, sys, shutil
 
 def convertFileNameToPanda(filename):
   """ (Get from Chicken) Converts Blender filenames to Panda 3D filenames.
