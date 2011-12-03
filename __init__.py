@@ -13,7 +13,8 @@ bl_info = {
 
 if "bpy" in locals():
     import imp
-    imp.reload(io_scene_egg.yabee_libs.egg_writer)
+    if 'egg_writer' in locals():
+        imp.reload(egg_writer)
 
 import bpy
 from bpy_extras.io_utils import ExportHelper
@@ -109,7 +110,7 @@ class YABEEProperty(bpy.types.PropertyGroup):
 
     opt_tex_path = StringProperty(
             name="Tex. path",
-            description="Path for the copied textures. Relative to the main EGG file dir.",
+            description="Path for the copied textures. Relative to the main EGG file dir",
             default='./tex',
             )
             
@@ -144,14 +145,7 @@ class YABEEProperty(bpy.types.PropertyGroup):
         layout.row().prop(self, 'opt_anim_only')
         layout.row().prop(self, 'opt_separate_anim_files')
         if not self.opt_anim_only:
-            if self.opt_tex_proc == 'SIMPLE':
-                layout.row().prop(self, 'opt_export_uv_as_texture')
-            if self.opt_copy_tex_files:
-                box = layout.box()
-                box.row().prop(self, 'opt_copy_tex_files')
-                box.row().prop(self, 'opt_tex_path')
-            else:
-                layout.row().prop(self, 'opt_copy_tex_files')
+            layout.row().prop(self, 'opt_tbs_proc')
             if self.opt_tex_proc == 'BAKE':
                 box = layout.box()
                 box.row().prop(self, 'opt_tex_proc')
@@ -161,7 +155,15 @@ class YABEEProperty(bpy.types.PropertyGroup):
                 self.opt_bake_glow.draw(box.row(align = True), "Glow")
             else:
                 layout.row().prop(self, 'opt_tex_proc')
-            layout.row().prop(self, 'opt_tbs_proc')
+            if self.opt_tex_proc == 'SIMPLE':
+                layout.row().prop(self, 'opt_export_uv_as_texture')
+            if self.opt_copy_tex_files or self.opt_tex_proc == 'BAKE':
+                box = layout.box()
+                if self.opt_tex_proc == 'SIMPLE':
+                    box.row().prop(self, 'opt_copy_tex_files')
+                box.row().prop(self, 'opt_tex_path')
+            else:
+                layout.row().prop(self, 'opt_copy_tex_files')
     
     def get_bake_dict(self):
         d = {}
@@ -299,9 +301,9 @@ class ExportPanda3DEGG(bpy.types.Operator, ExportHelper):
 
     def execute(self, context):
         #return write_some_data(context, self.filepath, self.use_setting)
-        import io_scene_egg.yabee_libs.egg_writer
+        from .yabee_libs import egg_writer
         sett = context.scene.yabee_settings
-        io_scene_egg.yabee_libs.egg_writer.write_out(self.filepath, 
+        egg_writer.write_out(self.filepath, 
                             sett.opt_anim_list.get_anim_dict(),
                             sett.opt_export_uv_as_texture, 
                             sett.opt_separate_anim_files, 

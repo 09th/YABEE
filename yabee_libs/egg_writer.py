@@ -10,6 +10,7 @@ from io_scene_egg.yabee_libs.texture_processor import SimpleTextures, TextureBak
 from io_scene_egg.yabee_libs.utils import convertFileNameToPanda, save_image
 import imp
 imp.reload(io_scene_egg.yabee_libs.texture_processor)
+imp.reload(io_scene_egg.yabee_libs.tbn_generator)
 #from yabee_libs.tbn_generator import TBNGenerator
 #import imp
 #imp.reload(TBNGenerator)
@@ -314,7 +315,7 @@ class EGGMeshObjectData(EGGBaseObjectData):
         self.colors_vtx_ref = self.pre_convert_vtx_color()
         self.uvs_list = self.pre_convert_uvs()
         if CALC_TBS == 'INTERNAL':
-            self.tbs = yabee_libs.tbn_generator.TBNGenerator(obj).generate()
+            self.tbs = io_scene_egg.yabee_libs.tbn_generator.TBNGenerator(obj).generate()
         else:
             self.tbs = None
             
