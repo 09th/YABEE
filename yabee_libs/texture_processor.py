@@ -42,8 +42,8 @@ class SimpleTextures():
                                     tex_list[f.image.name] = (name, t_path, 'MODULATE')
                 # General textures
                 for f in obj.data.faces:
-                    if f.material_index < len(bpy.data.materials):
-                        for tex in bpy.data.materials[f.material_index].texture_slots:
+                    if f.material_index < len(obj.data.materials):
+                        for tex in obj.data.materials[f.material_index].texture_slots:
                             if ((tex) and (not tex.texture.use_nodes)):
                                 if tex.texture_coords == 'UV' and obj.data.uv_textures:
                                     if tex.uv_layer:

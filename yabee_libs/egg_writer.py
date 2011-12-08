@@ -501,8 +501,8 @@ class EGGMeshObjectData(EGGBaseObjectData):
                     #if uv_tex.data[face.index].use_image:
                     if uv_tex.data[face.index].image.source == 'FILE':
                         attributes.append('<TRef> { %s }' % uv_tex.data[face.index].image.name)
-            if face.material_index < len(bpy.data.materials):
-                mat = bpy.data.materials[face.material_index]
+            if face.material_index < len(self.obj_ref.data.materials):
+                mat = self.obj_ref.data.materials[face.material_index]
                 tex_idx = 0
                 for tex in [tex for tex in mat.texture_slots if tex]:
                     if ((tex.texture_coords == 'UV') 
@@ -882,7 +882,6 @@ def get_used_materials():
     for obj in bpy.context.selected_objects:
         if obj.type == 'MESH':
             for f in obj.data.faces:
-                #if f.material_index < len(bpy.data.materials):
                 if f.material_index < len(obj.data.materials):
                     m_list.append(obj.data.materials[f.material_index].name)
     return set(m_list)
