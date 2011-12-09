@@ -926,13 +926,19 @@ def get_egg_materials_str():
         tb = TextureBaker(bpy.context.selected_objects, FILE_PATH, TEX_PATH)
         used_textures = tb.bake(BAKE_LAYERS)
     print(used_textures)
-    for name, path in used_textures.items():
+    #for name, path in used_textures.items():
+    #    mat_str += '<Texture> %s {\n' % name
+    #    mat_str += '  "' + convertFileNameToPanda(path[1]) + '"\n'
+    #    if path[0]:
+    #        mat_str += '  <Scalar> uv-name { %s }\n' % path[0]
+    #    if path[2] != 'MODULATE':
+    #        mat_str += '  <Scalar> envtype { %s }\n' % path[2]
+    #    mat_str += '}\n\n'
+    for name, params in used_textures.items():
         mat_str += '<Texture> %s {\n' % name
-        mat_str += '  "' + convertFileNameToPanda(path[1]) + '"\n'
-        if path[0]:
-            mat_str += '  <Scalar> uv-name { %s }\n' % path[0]
-        if path[2] != 'MODULATE':
-            mat_str += '  <Scalar> envtype { %s }\n' % path[2]
+        mat_str += '  "' + convertFileNameToPanda(params['path']) + '"\n'
+        for scalar in params['scalars']:
+            mat_str += ('  <Scalar> %s { %s }\n' % scalar)
         mat_str += '}\n\n'
     return mat_str
     

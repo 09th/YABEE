@@ -23,6 +23,10 @@ class SimpleTextures():
         
     def get_used_textures(self):
         """ Collect images from the UV images and Material texture slots 
+        tex_list structure:
+            image_name: { 'scalars': [(name, val), (name, val), ...],
+                          'path': 'path/to/texture'
+                        }
         """
         tex_list = {}
         for obj in self.obj_list:
@@ -39,7 +43,12 @@ class SimpleTextures():
                                     t_path = bpy.path.abspath(f.image.filepath)
                                     if self.copy_tex:
                                         t_path = save_image(f.image, self.file_path, self.tex_path)
-                                    tex_list[f.image.name] = (name, t_path, 'MODULATE')
+                                    #tex_list[f.image.name] = (name, t_path, 'MODULATE')
+                                    tex_list[f.image.name] = {'path': t_path,
+                                                              'scalars': [] }
+                                    tex_list[f.image.name]['scalars'].append(('envtype', 'MODULATE'))
+                                    if name:
+                                        tex_list[f.image.name]['scalars'].append(('uv-name', name))
                 # General textures
                 for f in obj.data.faces:
                     if f.material_index < len(obj.data.materials):
@@ -65,7 +74,12 @@ class SimpleTextures():
                                                 t_path = bpy.path.abspath(tex.texture.image.filepath)
                                                 if self.copy_tex:
                                                     t_path = save_image(tex.texture.image, self.file_path, self.tex_path)
-                                                tex_list[tex.texture.name] = (uv_name, t_path, envtype)
+                                                #tex_list[tex.texture.name] = (uv_name, t_path, envtype)
+                                                tex_list[tex.texture.name] = {'path': t_path,
+                                                                              'scalars': [] }
+                                                tex_list[tex.texture.name]['scalars'].append(('envtype', envtype))
+                                                if uv_name:
+                                                    tex_list[tex.texture.name]['scalars'].append(('uv-name', uv_name))
                                             #except:
                                             #    print('ERROR: can\'t get texture image on %s.' % tex.texture.name)
         return tex_list
@@ -169,6 +183,7 @@ class TextureBaker():
                         bpy.context.scene.render.bake_type = BAKE_TYPES[btype][0]
                         bpy.context.scene.render.bake_margin = 5
                         bpy.context.scene.render.color_mode = 'RGBA'
+                        bpy.context.scene.render.bake_normal_space = 'TANGENT'
                         #print(bpy.context.selected_objects[:])
                         map(self._select, self.obj_list)
                         #bpy.context.scene.update()
@@ -194,7 +209,15 @@ class TextureBaker():
                             img_path = paths[key]
                         else:
                             img_path = self.tex_path + val[1].name + '.' + bpy.context.scene.render.file_format.lower()
-                        tex_list[key] = (uv_name, img_path, envtype)
+                        #tex_list[key] = (uv_name, img_path, envtype)
+                        # Texture information dict
+                        tex_list[key] = {'path': img_path,
+                                         'scalars': [] }
+                        tex_list[key]['scalars'].append(('envtype', envtype))
+                        if uv_name:
+                            tex_list[key]['scalars'].append(('uv-name', uv_name))
+                        if envtype in ('GLOW', 'GLOSS'):
+                            tex_list[key]['scalars'].append(('alpha-file', '"' + img_path + '"'))
                 else:
                     print('WARNING: unknown bake layer "%s"' % btype)
         return tex_list
