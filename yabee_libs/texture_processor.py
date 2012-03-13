@@ -1,6 +1,6 @@
 """ 
     Part of the YABEE
-    rev 1.1
+    rev 1.2
 """
 import bpy
 if __name__ != '__main__':
@@ -61,7 +61,7 @@ class SimpleTextures():
                                             uv_name = ''
                                     else:
                                         uv_name = '' #obj.data.uv_textures[0].name
-                                    if tex.texture.image.source == 'FILE':
+                                    if tex.texture.image and tex.texture.image.source == 'FILE':
                                         if not tex.texture.name in list(tex_list.keys()):
                                             #try:
                                                 envtype = 'MODULATE'
@@ -182,7 +182,7 @@ class TextureBaker():
                         map(self._deselect, old_selected)
                         bpy.context.scene.render.bake_type = BAKE_TYPES[btype][0]
                         bpy.context.scene.render.bake_margin = 5
-                        bpy.context.scene.render.color_mode = 'RGBA'
+                        bpy.context.scene.render.image_settings.color_mode = 'RGBA'
                         bpy.context.scene.render.bake_normal_space = 'TANGENT'
                         #print(bpy.context.selected_objects[:])
                         map(self._select, self.obj_list)
@@ -238,7 +238,7 @@ if __name__ == '__main__':
         old_dir, old_f = os.path.split(convertFileNameToPanda(oldpath))
         f_names = [s.lower() for s in old_f.split('.')]
         if not f_names[-1] in ('jpg', 'png', 'tga', 'tiff', 'dds', 'bmp') and img.is_dirty:
-            old_f += ('.' + bpy.context.scene.render.file_format.lower())
+            old_f += ('.' + bpy.context.scene.render.image_settings.file_format.lower())
         rel_path = os.path.join(text_path, old_f)
         if os.name == 'nt':
             rel_path = rel_path.replace('\\','/')
@@ -258,10 +258,11 @@ if __name__ == '__main__':
                     shutil.copyfile(oldpath, newf)
                     print('COPY IMAGE %s to %s; rel path %s' % (oldpath, newf, rel_path))
             else:
-                img.filepath = os.path.abspath(os.path.join(new_dir, old_f))
-                print('SAVE IMAGE to %s; rel path: %s' % (img.filepath, rel_path))
-                img.save()
-                img.filepath == oldpath
+                if img.has_data:
+                    img.filepath = os.path.abspath(os.path.join(new_dir, old_f))
+                    print('SAVE IMAGE to %s; rel path: %s' % (img.filepath, rel_path))
+                    img.save()
+                    img.filepath == oldpath
         return rel_path
         
         

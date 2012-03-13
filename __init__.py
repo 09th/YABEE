@@ -1,3 +1,6 @@
+""" Part of the YABEE
+    rev 1.1
+"""
 bl_info = {
     "name": "Panda3d EGG format",
     "author": "Andrey (Ninth) Arbuzov",
@@ -65,7 +68,7 @@ class YABEEProperty(bpy.types.PropertyGroup):
             description="Export all textures as MODULATE or bake texture layers",
             items=(('SIMPLE', "Simple", "Export all texture layers."),
                    ('BAKE', "Bake", "Bake textures.")),
-            default='BAKE',
+            default='SIMPLE',
             )
             
     opt_bake_diffuse = PointerProperty(type=EGGBakeProperty)
@@ -184,7 +187,7 @@ class YABEEProperty(bpy.types.PropertyGroup):
         return warns
         
     def reset_defaults(self):        
-        self.opt_tex_proc = 'BAKE'
+        self.opt_tex_proc = 'SIMPLE'
         self.opt_tbs_proc = 'NO'
         self.opt_bake_diffuse.export = True
         self.opt_bake_diffuse.res_x, self.opt_bake_diffuse.res_y = 512, 512
@@ -302,6 +305,8 @@ class ExportPanda3DEGG(bpy.types.Operator, ExportHelper):
     def execute(self, context):
         #return write_some_data(context, self.filepath, self.use_setting)
         from .yabee_libs import egg_writer
+        import imp
+        imp.reload(egg_writer)
         sett = context.scene.yabee_settings
         egg_writer.write_out(self.filepath, 
                             sett.opt_anim_list.get_anim_dict(),

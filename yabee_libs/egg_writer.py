@@ -1,5 +1,5 @@
 """ Part of the YABEE
-    rev 11.1
+    rev 11.2
 """
 
 import bpy, os, sys, shutil
@@ -11,9 +11,8 @@ from io_scene_egg.yabee_libs.utils import convertFileNameToPanda, save_image
 import imp
 imp.reload(io_scene_egg.yabee_libs.texture_processor)
 imp.reload(io_scene_egg.yabee_libs.tbn_generator)
-#from yabee_libs.tbn_generator import TBNGenerator
-#import imp
-#imp.reload(TBNGenerator)
+imp.reload(io_scene_egg.yabee_libs.utils)
+
 
 FILE_PATH = None
 ANIMATIONS = None
@@ -173,11 +172,12 @@ class EGGBaseObjectData:
     def get_transform_str(self):
         """ Return the EGG string representation of object transforms.
         """
-        tr_str = '<Transform> {\n  <Matrix4> {\n'
-        for i in range(4):
-            #tr_str += '    ' + ' '.join(map(str, self.transform_matrix[i])) + '\n'
-            m = self.transform_matrix[i]
-            tr_str += '    %s %s %s %s\n' % (STRF(m[0]), STRF(m[1]), STRF(m[2]), STRF(m[3]))
+        tr_str = '<Transform> {\n  <Matrix4> {\n'        
+        for y in self.transform_matrix.col:
+            tr_str += '    '
+            for x in y[:]:
+                tr_str += STRF( x ) + ' '
+            tr_str += '\n'
         tr_str += '  }\n}\n'        
         return tr_str
         
@@ -508,7 +508,7 @@ class EGGMeshObjectData(EGGBaseObjectData):
                     if ((tex.texture_coords == 'UV') 
                          and (not tex.texture.use_nodes)
                          and (mat.use_textures[tex_idx])):
-                            if tex.texture.image.source == 'FILE':
+                            if tex.texture.image and tex.texture.image.source == 'FILE':
                                 attributes.append('<TRef> { %s }' % tex.texture.name)
                     tex_idx += 1
         elif TEXTURE_PROCESSOR == 'BAKE':
@@ -970,6 +970,9 @@ def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex,
     global FILE_PATH, ANIMATIONS, EXPORT_UV_IMAGE_AS_TEXTURE, \
            COPY_TEX_FILES, TEX_PATH, SEPARATE_ANIM_FILE, ANIM_ONLY, \
            STRF, CALC_TBS, TEXTURE_PROCESSOR, BAKE_LAYERS
+    imp.reload(io_scene_egg.yabee_libs.texture_processor)
+    imp.reload(io_scene_egg.yabee_libs.tbn_generator)
+    imp.reload(io_scene_egg.yabee_libs.utils)
     # === prepare to write ===
     FILE_PATH = fname
     ANIMATIONS = anims
