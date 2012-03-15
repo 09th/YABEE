@@ -55,3 +55,15 @@ def get_active_uv(obj):
         return auv[0]
     else:
         return None
+
+def eggSafeName(s):
+    """ (Get from Chicken) Function that converts names into something 
+    suitable for the egg file format - simply puts " around names that 
+    contain spaces and prunes bad characters, replacing them with an 
+    underscore.
+    """
+    s = str(s).replace('"','_') # Sure there are more bad characters, but this will do for now.
+    if ' ' in s:
+      return '"' + s + '"'
+    else:
+      return s

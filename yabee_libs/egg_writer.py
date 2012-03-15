@@ -7,7 +7,7 @@ from mathutils import *
 from math import pi
 import io_scene_egg.yabee_libs.tbn_generator
 from io_scene_egg.yabee_libs.texture_processor import SimpleTextures, TextureBaker
-from io_scene_egg.yabee_libs.utils import convertFileNameToPanda, save_image
+from io_scene_egg.yabee_libs.utils import *
 import imp
 imp.reload(io_scene_egg.yabee_libs.texture_processor)
 imp.reload(io_scene_egg.yabee_libs.tbn_generator)
@@ -533,7 +533,7 @@ class EGGMeshObjectData(EGGBaseObjectData):
         #    mat = bpy.data.materials[face.material_index]
         if face.material_index < len(self.obj_ref.data.materials):
             mat = self.obj_ref.data.materials[face.material_index]
-            attributes.append('<MRef> { %s }' % mat.name)
+            attributes.append('<MRef> { %s }' % eggSafeName(mat.name))
         return attributes
     
     def collect_poly_normal(self, face, attributes):
@@ -896,7 +896,7 @@ def get_egg_materials_str():
     mat_str = ''
     for m_idx in get_used_materials():
         mat = bpy.data.materials[m_idx]
-        mat_str += '<Material> %s {\n' % mat.name
+        mat_str += '<Material> %s {\n' % eggSafeName(mat.name)
         if TEXTURE_PROCESSOR == 'SIMPLE':
             mat_str += '  <Scalar> diffr { %s }\n' % STRF(mat.diffuse_color[0] * mat.diffuse_intensity)
             mat_str += '  <Scalar> diffg { %s }\n' % STRF(mat.diffuse_color[1] * mat.diffuse_intensity)
@@ -943,18 +943,6 @@ def get_egg_materials_str():
     return mat_str
     
     
-def eggSafeName(s):
-  """ (Get from Chicken) Function that converts names into something 
-  suitable for the egg file format - simply puts " around names that 
-  contain spaces and prunes bad characters, replacing them with an 
-  underscore.
-  """
-  s = str(s).replace('"','_') # Sure there are more bad characters, but this will do for now.
-  if ' ' in s:
-    return '"' + s + '"'
-  else:
-    return s
-
 
 def hierarchy_to_list(obj, list):
     list.append(obj)
