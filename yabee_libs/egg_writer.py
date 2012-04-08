@@ -368,9 +368,8 @@ class EGGMeshObjectData(EGGBaseObjectData):
     def pre_convert_vtx_color(self):
         color_vtx_ref = []
         if self.obj_ref.data.vertex_colors.active:
-            for cols in self.obj_ref.data.vertex_colors.data:
-                for col in (cols.color1, cols.color2, cols.color3, cols.color4):
-                    color_vtx_ref.append(col)
+            for col in self.obj_ref.data.vertex_colors.active.data:
+                color_vtx_ref.append(col.color) # We have one color per data color
             #for fi, face in enumerate(self.obj_ref.data.polygons):
             #    col = self.obj_ref.data.vertex_colors.active.data[fi]
             #    col = col.color1[:], col.color2[:], col.color3[:], col.color4[:]
