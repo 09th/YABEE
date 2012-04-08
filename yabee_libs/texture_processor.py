@@ -50,7 +50,7 @@ class SimpleTextures():
                                     if name:
                                         tex_list[f.image.name]['scalars'].append(('uv-name', name))
                 # General textures
-                for f in obj.data.faces:
+                for f in obj.data.polygons:
                     if f.material_index < len(obj.data.materials):
                         for tex in obj.data.materials[f.material_index].texture_slots:
                             if ((tex) and (not tex.texture.use_nodes)):

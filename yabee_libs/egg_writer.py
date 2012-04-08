@@ -330,7 +330,7 @@ class EGGMeshObjectData(EGGBaseObjectData):
         shading used normals of vertices. For solid - polygons.
         """
         vtx_list = []
-        for f in self.obj_ref.data.faces:
+        for f in self.obj_ref.data.polygons:
             if f.use_smooth:
                 for v in f.vertices:                
                     vtx_list.append(v)
@@ -357,7 +357,7 @@ class EGGMeshObjectData(EGGBaseObjectData):
         """
         poly_vtx_ref = []
         idx = 0
-        for face in self.obj_ref.data.faces:
+        for face in self.obj_ref.data.polygons:
             vtxs = []
             for v in face.vertices:
                 vtxs.append(idx)
@@ -368,10 +368,10 @@ class EGGMeshObjectData(EGGBaseObjectData):
     def pre_convert_vtx_color(self):
         color_vtx_ref = []
         if self.obj_ref.data.vertex_colors.active:
-            for cols in self.obj_ref.data.vertex_colors.active.data:
+            for cols in self.obj_ref.data.vertex_colors.data:
                 for col in (cols.color1, cols.color2, cols.color3, cols.color4):
                     color_vtx_ref.append(col)
-            #for fi, face in enumerate(self.obj_ref.data.faces):
+            #for fi, face in enumerate(self.obj_ref.data.polygons):
             #    col = self.obj_ref.data.vertex_colors.active.data[fi]
             #    col = col.color1[:], col.color2[:], col.color3[:], col.color4[:]
             #    for vi, v in enumerate(face.vertices):
@@ -465,7 +465,7 @@ class EGGMeshObjectData(EGGBaseObjectData):
         """
         vertices = []
         idx = 0
-        for f in self.obj_ref.data.faces:
+        for f in self.obj_ref.data.polygons:
             for v in f.vertices:
                 # v - Blender inner vertex index
                 # idx - Vertex index for the EGG
@@ -584,7 +584,7 @@ class EGGMeshObjectData(EGGBaseObjectData):
         """ Convert and collect polygons info 
         """
         polygons = []
-        for f in self.obj_ref.data.faces:
+        for f in self.obj_ref.data.polygons:
             poly = '<Polygon> {\n'
             attributes = []
             self.collect_poly_tref(f, attributes)
@@ -643,7 +643,7 @@ class EGGActorObjectData(EGGMeshObjectData):
         """
         joint_vref = {}
         idx = 0
-        for face in self.obj_ref.data.faces:
+        for face in self.obj_ref.data.polygons:
             for v in face.vertices:
                 for g in self.obj_ref.data.vertices[v].groups:
                     gname = self.obj_ref.vertex_groups[g.group].name
@@ -881,7 +881,7 @@ def get_used_materials():
     m_list = []
     for obj in bpy.context.selected_objects:
         if obj.type == 'MESH':
-            for f in obj.data.faces:
+            for f in obj.data.polygons:
                 if f.material_index < len(obj.data.materials):
                     m_list.append(obj.data.materials[f.material_index].name)
     return set(m_list)
