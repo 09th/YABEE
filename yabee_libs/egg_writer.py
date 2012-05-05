@@ -342,7 +342,8 @@ class EGGMeshObjectData(EGGBaseObjectData):
         individual vertices for each polygon.
         """
         uv_list = []
-        for uv_layer in self.obj_ref.data.uv_textures:
+        self.obj_ref.data.update(calc_tessface=True)
+        for uv_layer in self.obj_ref.data.tessface_uv_textures:
             data = []
             for uv_face in uv_layer.data:
                 for u,v in uv_face.uv:
