@@ -21,6 +21,28 @@ class SimpleTextures():
         self.file_path = file_path
         self.tex_path = tex_path
         
+    def is_slot_valid(self, tex):
+        if ((tex) and (not tex.texture.use_nodes)):
+            if tex.texture_coords == 'UV':
+                if tex.texture.image and tex.texture.image.source == 'FILE':
+                    return True
+        
+        return False
+        
+    def get_valid_slots(self, slots):
+        valid_slots = []
+        for tex in slots:
+            if(self.is_slot_valid(tex)):
+                valid_slots.append(tex)
+        
+        return valid_slots
+        
+    def get_alpha_slot(self, slots):
+        for tex in slots:
+            if(tex.use_map_alpha): 
+                return tex
+        return None
+        
     def get_used_textures(self):
         """ Collect images from the UV images and Material texture slots 
         tex_list structure:
@@ -51,37 +73,64 @@ class SimpleTextures():
                                         tex_list[f.image.name]['scalars'].append(('uv-name', name))
                 # General textures
                 for f in obj.data.polygons:
-                    if f.material_index < len(obj.data.materials):
-                        for tex in obj.data.materials[f.material_index].texture_slots:
-                            if ((tex) and (not tex.texture.use_nodes)):
-                                if tex.texture_coords == 'UV' and obj.data.uv_textures:
-                                    if tex.uv_layer:
-                                        uv_name = tex.uv_layer
-                                        if not [uv.name for uv in obj.data.uv_textures].index(uv_name):
-                                            uv_name = ''
-                                    else:
-                                        uv_name = '' #obj.data.uv_textures[0].name
-                                    if tex.texture.image and tex.texture.image.source == 'FILE':
-                                        if not tex.texture.name in list(tex_list.keys()):
-                                            #try:
-                                                envtype = 'MODULATE'
-                                                if tex.use_map_normal:
-                                                    envtype = 'NORMAL'
-                                                if tex.use_map_emit:
-                                                    envtype = 'GLOW'
-                                                if tex.use_map_specular:
-                                                    envtype = 'GLOSS'
-                                                t_path = bpy.path.abspath(tex.texture.image.filepath)
-                                                if self.copy_tex:
-                                                    t_path = save_image(tex.texture.image, self.file_path, self.tex_path)
-                                                #tex_list[tex.texture.name] = (uv_name, t_path, envtype)
-                                                tex_list[tex.texture.name] = {'path': t_path,
-                                                                              'scalars': [] }
-                                                tex_list[tex.texture.name]['scalars'].append(('envtype', envtype))
-                                                if uv_name:
-                                                    tex_list[tex.texture.name]['scalars'].append(('uv-name', uv_name))
-                                            #except:
-                                            #    print('ERROR: can\'t get texture image on %s.' % tex.texture.name)
+                    if obj.data.uv_textures and f.material_index < len(obj.data.materials):
+                        valid_slots = self.get_valid_slots(obj.data.materials[f.material_index].texture_slots)
+                        alpha_tex = self.get_alpha_slot(valid_slots)
+                        alpha_map_assigned = False
+                        
+                        for tex in valid_slots:
+                            if tex.uv_layer:
+                                uv_name = tex.uv_layer
+                                if not [uv.name for uv in obj.data.uv_textures].index(uv_name):
+                                    uv_name = ''
+                            else:
+                                uv_name = '' #obj.data.uv_textures[0].name
+                    
+                            
+                            if not tex.texture.name in list(tex_list.keys()):
+                                #try:
+                                    envtype = 'MODULATE'
+                                    if tex.use_map_normal:
+                                        envtype = 'NORMAL'
+                                    if tex.use_map_emit:
+                                        envtype = 'GLOW'
+                                    if tex.use_map_specular:
+                                        envtype = 'GLOSS'
+                                    if tex.use_map_alpha and not tex.use_map_color_diffuse:
+                                        continue;
+                                    
+                                    t_path = bpy.path.abspath(tex.texture.image.filepath)
+                                    if self.copy_tex:
+                                        t_path = save_image(tex.texture.image, self.file_path, self.tex_path)
+                                    #tex_list[tex.texture.name] = (uv_name, t_path, envtype)
+                                    tex_list[tex.texture.name] = {'path': t_path,
+                                                                  'scalars': [] }
+                                    tex_list[tex.texture.name]['scalars'].append(('envtype', envtype))
+                                    
+                                    if(tex.texture.use_mipmap):
+                                        tex_list[tex.texture.name]['scalars'].append(('minfilter', 'LINEAR_MIPMAP_LINEAR'))
+                                        tex_list[tex.texture.name]['scalars'].append(('magfilter', 'LINEAR_MIPMAP_LINEAR'))
+                                    
+                                    wrap_mode = 'REPEAT'
+                                    if(tex.texture.extension == 'CLIP'):
+                                        wrap_mode = 'CLAMP'
+                                    
+                                    tex_list[tex.texture.name]['scalars'].append(('wrap', wrap_mode))     
+                                    
+                                    if(envtype == 'MODULATE'):
+                                        if(alpha_tex and not alpha_map_assigned):
+                                            alpha_map_assigned = True
+                                            alpha_path = bpy.path.abspath(alpha_tex.texture.image.filepath)
+                                            if self.copy_tex:
+                                                alpha_path = save_image(alpha_tex.texture.image, self.file_path, self.tex_path)
+                                            tex_list[tex.texture.name]['scalars'].append(('alpha-file', '\"%s\"' % alpha_path))
+                                            
+                                            if(obj.data.materials[f.material_index].game_settings.alpha_blend == 'CLIP'):
+                                                tex_list[tex.texture.name]['scalars'].append(('alpha', 'BINARY'))
+                                    if uv_name:
+                                        tex_list[tex.texture.name]['scalars'].append(('uv-name', uv_name))
+                                #except:
+                                #    print('ERROR: can\'t get texture image on %s.' % tex.texture.name)
         return tex_list
         
 
