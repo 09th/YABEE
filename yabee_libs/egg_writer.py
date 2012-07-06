@@ -391,8 +391,9 @@ class EGGMeshObjectData(EGGBaseObjectData):
         """
         #co = self.obj_ref.data.vertices[vidx].co * self.obj_ref.matrix_world
         co = self.obj_ref.matrix_world * self.obj_ref.data.vertices[vidx].co
-        co = map(STRF, co)
-        attributes.append(' '.join(co))
+        #co = map(STRF, co)
+        co = map(str, co)
+        attributes.append('\n' + ' '.join(co))
         return attributes
         
     def collect_vtx_dxyz(self, vidx, attributes):
@@ -449,11 +450,11 @@ class EGGMeshObjectData(EGGBaseObjectData):
                 t = self.tbs[vidx][0][i]
                 b = self.tbs[vidx][1][i]
             try:
-                uv_str = '<UV> %s {\n  %s %s\n' % (name, STRF(data[ividx][0]), STRF(data[ividx][1]))
+                uv_str = '\n<UV> %s {\n  %s %s\n' % (name, STRF(data[ividx][0]), STRF(data[ividx][1]))
                 if self.tbs:
                     uv_str += '  <Tangent> { %s %s %s }\n' % (STRF(t[0]), STRF(t[1]), STRF(t[2]))
                     uv_str += '  <Binormal> { %s %s %s }\n' % (STRF(b[0]), STRF(b[1]), STRF(b[2]))
-                uv_str  += '}\n'
+                uv_str  += '}'
                 attributes.append(uv_str)
                 #attributes.append('<UV> %s { %.6f %.6f }' % (name, data[ividx][0], data[ividx][1]))
             except:
@@ -469,17 +470,16 @@ class EGGMeshObjectData(EGGBaseObjectData):
             for v in f.vertices:
                 # v - Blender inner vertex index
                 # idx - Vertex index for the EGG
-                vtx = '<Vertex> %s {\n' % idx
                 attributes = []
                 self.collect_vtx_xyz(v, attributes)
                 self.collect_vtx_dxyz(v, attributes)
                 self.collect_vtx_normal(v, attributes)
                 self.collect_vtx_rgba(idx, attributes)
                 self.collect_vtx_uv(v, idx, attributes)
-                for attr in attributes:
-                    for attr_str in attr.splitlines():
-                        vtx += '  ' + attr_str + '\n'
-                vtx += '}\n'
+                str_attr = ''.join(attributes)
+                str_attr = str_attr.replace('\n', '\n  ')
+                #vtx = '\n<Vertex> %s {%s\n}' % (idx, str_attr)
+                vtx = '\n<Vertex> ' + str(idx) + ' {' + str_attr + '\n}'
                 vertices.append(vtx)
                 idx += 1
         return vertices
@@ -604,19 +604,16 @@ class EGGMeshObjectData(EGGBaseObjectData):
         """ Return the vertex pool string in the EGG syntax. 
         """
         vtx_pool = '<VertexPool> %s {\n' % self.obj_ref.name
-        for vtx_str in self.collect_vertices():
-            for line in vtx_str.splitlines():
-                vtx_pool += '  ' + line + '\n'
+        vtxs = ''.join(self.collect_vertices())
+        vtxs = vtxs.replace('\n', '\n  ')
+        vtx_pool += vtxs
         vtx_pool += '}\n'
         return vtx_pool
         
     def get_polygons_str(self):
         """ Return polygons string in the EGG syntax 
         """
-        polygons = '\n'
-        for poly_str in self.collect_polygons():
-            for line in poly_str.splitlines():
-                polygons += line + '\n'
+        polygons = '\n' + ''.join(self.collect_polygons())
         return polygons
         
     def get_full_egg_str(self):
@@ -972,9 +969,10 @@ def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex,
     TEX_PATH = t_path
     TEXTURE_PROCESSOR = tex_processor
     BAKE_LAYERS = b_layers
+    s_acc = '%.' + str(fp_accuracy) + 'f'
     def str_f(x):
-        s = '%.' + str(fp_accuracy) + 'f'
-        return s % x
+        #s = '%.' + str(fp_accuracy) + 'f'
+        return s_acc % x
     STRF = str_f
     if bpy.ops.object.mode_set.poll():
         bpy.ops.object.mode_set(mode='OBJECT')
@@ -1046,3 +1044,17 @@ def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex,
                 print(line)
         except:
             print('ERROR: Can\'t calculate TBS through panda\'s egg-trans')
+
+
+def write_out_test(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex, 
+              t_path, fp_accuracy, tbs, tex_processor, b_layers):
+    import profile
+    import pstats
+    wo = "write_out('%s', %s, %s, %s, %s, %s, '%s', %s, '%s', '%s', %s)" % \
+            (fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex, 
+             t_path, fp_accuracy, tbs, tex_processor, b_layers)
+    profile.runctx(wo, globals(), {}, 'main_prof')
+    stats = pstats.Stats('main_prof')
+    stats.strip_dirs()
+    stats.sort_stats('time')
+    stats.print_stats(10)
