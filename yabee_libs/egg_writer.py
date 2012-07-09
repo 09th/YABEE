@@ -508,7 +508,7 @@ class EGGMeshObjectData(EGGBaseObjectData):
                     if ((tex.texture_coords == 'UV') 
                          and (not tex.texture.use_nodes)
                          and (mat.use_textures[tex_idx])):
-                            if tex.texture.image and tex.texture.image.source == 'FILE':
+                            if tex.texture.image and tex.texture.image.source == 'FILE' and not tex.use_map_alpha:
                                 attributes.append('<TRef> { %s }' % tex.texture.name)
                     tex_idx += 1
         elif TEXTURE_PROCESSOR == 'BAKE':
