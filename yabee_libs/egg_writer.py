@@ -71,9 +71,12 @@ class Group:
         egg_str = ''
         if self.object:
             for prop in self.object.game.properties:
-                egg_str += '%s<Tag> %s { %s }\n' % ('  ' * level, 
-                                                    eggSafeName(prop.name),
-                                                    eggSafeName(prop.value))
+                if prop.name in ('Collide', 'ObjectType'):
+                    vals = ('  ' * level, prop.name, prop.value)
+                    egg_str += '%s<%s> { %s }\n' % vals
+                else:
+                    vals = ('  ' * level, eggSafeName(prop.name), eggSafeName(prop.value))
+                    egg_str += '%s<Tag> %s { %s }\n' % vals
         return egg_str
                 
             
