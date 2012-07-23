@@ -318,7 +318,8 @@ class ExportPanda3DEGG(bpy.types.Operator, ExportHelper):
                             3,
                             sett.opt_tbs_proc,
                             sett.opt_tex_proc,
-                            sett.get_bake_dict())
+                            sett.get_bake_dict(),
+                            True)
         return {'FINISHED'}
         
     def invoke(self, context, evt):

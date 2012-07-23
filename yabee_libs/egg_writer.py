@@ -24,6 +24,7 @@ ANIM_ONLY = None
 CALC_TBS = None
 TEXTURE_PROCESSOR = None
 BAKE_LAYERS = None
+MERGE_ACTORS = None
 STRF = lambda x: '%.6f' % x
 
 class Group:
@@ -949,15 +950,35 @@ def hierarchy_to_list(obj, list):
     for ch in obj.children:
         if ch not in list:
             hierarchy_to_list(ch, list)
+            
+def merge_objects():
+    join_to_arm = {}
+    for obj in bpy.context.selected_objects:
+        if obj.type == 'MESH':
+            for mod in obj.modifiers:
+                if mod and mod.type == 'ARMATURE':
+                    if mod.object.name not in join_to_arm.keys():
+                        join_to_arm[mod.object.name] = []
+                    join_to_arm[mod.object.name].append(obj)
+                    break
+    for objects in join_to_arm.values():
+        bpy.ops.object.select_all(action = 'DESELECT')
+        for obj in objects:
+            obj.select = True
+        bpy.ops.object.join()
+        
+    for objects in join_to_arm.values():
+        objects[0].select = True
 
 #-----------------------------------------------------------------------
 #                           WRITE OUT                                   
 #-----------------------------------------------------------------------
 def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex, 
-              t_path, fp_accuracy, tbs, tex_processor, b_layers):
+              t_path, fp_accuracy, tbs, tex_processor, b_layers, 
+              m_actors):
     global FILE_PATH, ANIMATIONS, EXPORT_UV_IMAGE_AS_TEXTURE, \
            COPY_TEX_FILES, TEX_PATH, SEPARATE_ANIM_FILE, ANIM_ONLY, \
-           STRF, CALC_TBS, TEXTURE_PROCESSOR, BAKE_LAYERS
+           STRF, CALC_TBS, TEXTURE_PROCESSOR, BAKE_LAYERS, MERGE_ACTORS
     imp.reload(io_scene_egg.yabee_libs.texture_processor)
     imp.reload(io_scene_egg.yabee_libs.tbn_generator)
     imp.reload(io_scene_egg.yabee_libs.utils)
@@ -972,11 +993,15 @@ def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex,
     TEX_PATH = t_path
     TEXTURE_PROCESSOR = tex_processor
     BAKE_LAYERS = b_layers
+    MERGE_ACTORS = m_actors
     s_acc = '%.' + str(fp_accuracy) + 'f'
     def str_f(x):
         #s = '%.' + str(fp_accuracy) + 'f'
         return s_acc % x
     STRF = str_f
+    bpy.ops.scene.new(type = 'FULL_COPY')
+    if MERGE_ACTORS:
+        merge_objects()
     if bpy.ops.object.mode_set.poll():
         bpy.ops.object.mode_set(mode='OBJECT')
     gr = Group(None)
@@ -1047,6 +1072,7 @@ def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex,
                 print(line)
         except:
             print('ERROR: Can\'t calculate TBS through panda\'s egg-trans')
+    bpy.ops.scene.delete()
 
 
 def write_out_test(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex, 
