@@ -8,6 +8,7 @@ from math import pi
 import io_scene_egg.yabee_libs.tbn_generator
 from io_scene_egg.yabee_libs.texture_processor import SimpleTextures, TextureBaker
 from io_scene_egg.yabee_libs.utils import *
+import subprocess
 import imp
 imp.reload(io_scene_egg.yabee_libs.texture_processor)
 imp.reload(io_scene_egg.yabee_libs.tbn_generator)
@@ -24,7 +25,8 @@ ANIM_ONLY = None
 CALC_TBS = None
 TEXTURE_PROCESSOR = None
 BAKE_LAYERS = None
-MERGE_ACTORS = None
+MERGE_ACTOR_MESH = None
+PVIEW = True
 STRF = lambda x: '%.6f' % x
 
 class Group:
@@ -92,7 +94,7 @@ class Group:
         """
         egg_str = ''
         if self.object:
-            egg_str += '%s<Group> %s {\n' % ('  ' * level, eggSafeName(self.object.name))
+            egg_str += '%s<Group> %s {\n' % ('  ' * level, eggSafeName(self.object.yabee_name))
             egg_str += self.get_tags_egg_str(level + 1)
             if self.object.type == 'MESH':
                 if (('ARMATURE' in [m.type for m in self.object.modifiers]) or 
@@ -857,12 +859,13 @@ class AnimCollector():
         if self.obj_anim_ref:
             egg_str += '<Table> {\n'
             for obj_name, obj_data in self.obj_anim_ref.items():
+                yabee_obj_name = bpy.data.objects[obj_name].yabee_name
                 if self.name:
                     anim_name = self.name
                 else:
                     anim_name = obj_name
                 if SEPARATE_ANIM_FILE:
-                    egg_str += '  <Bundle> %s {\n' % eggSafeName(obj_name)
+                    egg_str += '  <Bundle> %s {\n' % eggSafeName(yabee_obj_name)
                 else:
                     egg_str += '  <Bundle> %s {\n' % eggSafeName(anim_name)
                 for line in self.get_skeleton_anim_str(obj_name).splitlines():
@@ -944,7 +947,9 @@ def get_egg_materials_str():
     return mat_str
     
     
-
+#-----------------------------------------------------------------------
+#                   Preparing & auxiliary functions                     
+#-----------------------------------------------------------------------
 def hierarchy_to_list(obj, list):
     list.append(obj)
     for ch in obj.children:
@@ -952,33 +957,75 @@ def hierarchy_to_list(obj, list):
             hierarchy_to_list(ch, list)
             
 def merge_objects():
+    """ Merge objects, which armatured by single Armature.
+    """
     join_to_arm = {}
+    selection = []
     for obj in bpy.context.selected_objects:
         if obj.type == 'MESH':
             for mod in obj.modifiers:
                 if mod and mod.type == 'ARMATURE':
-                    if mod.object.name not in join_to_arm.keys():
-                        join_to_arm[mod.object.name] = []
-                    join_to_arm[mod.object.name].append(obj)
-                    break
+                    if mod.object not in join_to_arm.keys():
+                        join_to_arm[mod.object] = []
+                    join_to_arm[mod.object].append(obj)
     for objects in join_to_arm.values():
         bpy.ops.object.select_all(action = 'DESELECT')
         for obj in objects:
             obj.select = True
+        print('selected', bpy.context.selected_objects)
+        bpy.context.scene.objects.active = bpy.context.selected_objects[0]
         bpy.ops.object.join()
-        
-    for objects in join_to_arm.values():
-        objects[0].select = True
+        selection += bpy.context.selected_objects[:]
+    bpy.ops.object.select_all(action = 'DESELECT')
+    for obj in selection:
+        obj.select = True
+
+def parented_to_armatured():
+    """ Convert parented to bone objects to armatured objects.
+    """
+    arm_objects = []
+    old_selection = [obj for obj in bpy.context.selected_objects]
+    bpy.ops.object.select_all(action = 'DESELECT')
+    for obj in bpy.data.objects:
+        if obj.type == 'MESH' \
+           and obj.parent \
+           and obj.parent.type == 'ARMATURE' \
+           and obj.parent_bone:
+            bpy.ops.object.select_all(action = 'DESELECT')
+            obj.select = True
+            arm = obj.parent
+            bone = obj.parent_bone
+            bpy.ops.object.select_hierarchy(direction = 'CHILD', extend = True)
+            has_selected = [obj for obj \
+                            in bpy.context.selected_objects if \
+                            obj in old_selection]
+            if has_selected:
+                for sobj in has_selected:
+                    arm_objects.append((sobj, arm, bone))
+    for obj, arm, bone in arm_objects:
+        modifiers = [mod.type for mod in obj.modifiers]
+        if 'ARMATURE' not in modifiers:
+            obj.vertex_groups.new(bone)
+            obj.modifiers.new(type = 'ARMATURE', name = 'PtA')
+            obj.modifiers['PtA'].object = arm
+            idxs = [vtx.index for vtx in obj.data.vertices]
+            obj.vertex_groups[bone].add(index = idxs, weight = 1.0, type = 'ADD')
+            obj.matrix_local = obj.matrix_parent_inverse * obj.matrix_world
+            obj.parent = None
+    for obj in old_selection:
+        obj.select = True
+
 
 #-----------------------------------------------------------------------
 #                           WRITE OUT                                   
 #-----------------------------------------------------------------------
 def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex, 
               t_path, fp_accuracy, tbs, tex_processor, b_layers, 
-              m_actors):
+              m_actor, pview):
     global FILE_PATH, ANIMATIONS, EXPORT_UV_IMAGE_AS_TEXTURE, \
            COPY_TEX_FILES, TEX_PATH, SEPARATE_ANIM_FILE, ANIM_ONLY, \
-           STRF, CALC_TBS, TEXTURE_PROCESSOR, BAKE_LAYERS, MERGE_ACTORS
+           STRF, CALC_TBS, TEXTURE_PROCESSOR, BAKE_LAYERS, \
+           MERGE_ACTOR_MESH, PVIEW
     imp.reload(io_scene_egg.yabee_libs.texture_processor)
     imp.reload(io_scene_egg.yabee_libs.tbn_generator)
     imp.reload(io_scene_egg.yabee_libs.utils)
@@ -993,18 +1040,24 @@ def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex,
     TEX_PATH = t_path
     TEXTURE_PROCESSOR = tex_processor
     BAKE_LAYERS = b_layers
-    MERGE_ACTORS = m_actors
+    MERGE_ACTOR_MESH = m_actor
     s_acc = '%.' + str(fp_accuracy) + 'f'
     def str_f(x):
         #s = '%.' + str(fp_accuracy) + 'f'
         return s_acc % x
     STRF = str_f
+    # Sync objects names with custom property "yabee_name" 
+    # to be able to get basic object name in the copy of the scene.
+    for obj in bpy.data.objects:
+        obj.yabee_name = obj.name
     bpy.ops.scene.new(type = 'FULL_COPY')
-    if MERGE_ACTORS:
+    parented_to_armatured()
+    if MERGE_ACTOR_MESH:
         merge_objects()
     if bpy.ops.object.mode_set.poll():
         bpy.ops.object.mode_set(mode='OBJECT')
     gr = Group(None)
+    """
     # exclude objects, parented to the bones and his children
     # objects, parented to the bones will be process later in the Armature
     b_ex_list = [obj for obj in bpy.context.selected_objects if obj.parent_type == 'BONE']
@@ -1030,6 +1083,10 @@ def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex,
                         del obj_list[obj_list.index(mod.object)]
                         print('EXCLUDE Armature \'%s\' since it\'s a modifier' % mod.object.name)
     gr.make_hierarchy_from_list(obj_list)
+    """
+    obj_list = [obj for obj in bpy.context.selected_objects if obj.type != 'ARMATURE']
+    print('obj list', obj_list)
+    gr.make_hierarchy_from_list(obj_list)
     #gr.print_hierarchy()
     fdir, fname = os.path.split(os.path.abspath(FILE_PATH))
     if not os.path.exists(fdir):
@@ -1043,6 +1100,7 @@ def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex,
         file.write('<CoordinateSystem> { Z-up } \n')
         file.write(get_egg_materials_str())
         file.write(gr.get_full_egg_str())
+    fpa = []
     for a_name, frames in ANIMATIONS.items():
         ac = AnimCollector(obj_list, 
                             frames[0], 
@@ -1063,6 +1121,7 @@ def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex,
                 a_file.write('<CoordinateSystem> { Z-up } \n')
                 a_file.write(ac.get_full_egg_str())
                 a_file.close()
+                fpa.append(a_path)
     if ((not ANIM_ONLY) or (not SEPARATE_ANIM_FILE)):
         file.close()
     if CALC_TBS == 'PANDA':
@@ -1072,6 +1131,12 @@ def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex,
                 print(line)
         except:
             print('ERROR: Can\'t calculate TBS through panda\'s egg-trans')
+    if PVIEW:
+        try:
+            fp = os.path.abspath(FILE_PATH)
+            subprocess.Popen(['pview', fp] + fpa)
+        except:
+            print('ERROR: Can\'t execute pview')
     bpy.ops.scene.delete()
 
 

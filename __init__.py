@@ -319,7 +319,7 @@ class ExportPanda3DEGG(bpy.types.Operator, ExportHelper):
                             sett.opt_tbs_proc,
                             sett.opt_tex_proc,
                             sett.get_bake_dict(),
-                            True)
+                            True, True)
         return {'FINISHED'}
         
     def invoke(self, context, evt):
@@ -344,6 +344,9 @@ def register():
 
     # Good or bad, but I'll store settings in the scene
     bpy.types.Scene.yabee_settings = PointerProperty(type=YABEEProperty)
+    # Hack again. I use custom property to be able to get basic 
+    # object name in the copy of the scene.
+    bpy.types.Object.yabee_name = StringProperty(name="YABEE_Name", default="Unknown")
 
     bpy.types.INFO_MT_file_export.append(menu_func_export)
 
