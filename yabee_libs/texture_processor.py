@@ -1,6 +1,5 @@
 """ 
-    Part of the YABEE
-    rev 1.2
+    Part of the YABEE rev 12.0
 """
 import bpy
 if __name__ != '__main__':

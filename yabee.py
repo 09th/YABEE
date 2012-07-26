@@ -1,6 +1,4 @@
-""" YABEE (Yet another Blender's egg-exporter)
-    for Blender 2.59
-    rev 11.1
+""" YABEE rev 12.0
 """
 # -------------- Change this to setup parameters -----------------------
 #: file name to write
@@ -92,4 +90,4 @@ if __name__ == '__main__':
                         FLOATING_POINT_ACCURACY,
                         CALC_TBS,
                         TEXTURE_PROCESSOR,
-                        BAKE_LAYERS)
+                        BAKE_LAYERS, True, True, True)

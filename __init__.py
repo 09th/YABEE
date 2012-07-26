@@ -117,6 +117,24 @@ class YABEEProperty(bpy.types.PropertyGroup):
             default='./tex',
             )
             
+    opt_merge_actor = BoolProperty(
+            name="Merge actor",
+            description="Merge meshes, armatured by single Armature",
+            default=True,
+            )
+            
+    opt_apply_modifiers = BoolProperty(
+            name="Apply modifiers",
+            description="Apply modifiers on exported objects (except Armature)",
+            default=True,
+            )
+            
+    opt_pview = BoolProperty(
+            name="Pview",
+            description="Run pview after exporting",
+            default=False,
+            )
+            
     opt_anim_list = PointerProperty(type=EGGAnimList)
     
     first_run = BoolProperty(default = True)
@@ -167,6 +185,9 @@ class YABEEProperty(bpy.types.PropertyGroup):
                 box.row().prop(self, 'opt_tex_path')
             else:
                 layout.row().prop(self, 'opt_copy_tex_files')
+            layout.row().prop(self, 'opt_merge_actor')
+            layout.row().prop(self, 'opt_apply_modifiers')
+            layout.row().prop(self, 'opt_pview')
     
     def get_bake_dict(self):
         d = {}
@@ -202,6 +223,9 @@ class YABEEProperty(bpy.types.PropertyGroup):
         self.opt_separate_anim_files = True
         self.opt_anim_only = False
         self.opt_tex_path = './tex'
+        self.opt_merge_actor = True
+        self.opt_apply_modifiers = True
+        self.opt_pview = False
         while self.opt_anim_list.anim_collection[:]:
             bpy.ops.export.egg_anim_remove('INVOKE_DEFAULT')
         self.first_run = False
@@ -319,7 +343,9 @@ class ExportPanda3DEGG(bpy.types.Operator, ExportHelper):
                             sett.opt_tbs_proc,
                             sett.opt_tex_proc,
                             sett.get_bake_dict(),
-                            True, True)
+                            sett.opt_merge_actor,
+                            sett.opt_apply_modifiers,
+                            sett.opt_pview)
         return {'FINISHED'}
         
     def invoke(self, context, evt):

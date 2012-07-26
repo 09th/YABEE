@@ -1,0 +1,16 @@
+------------- Release 12.0 ---------------
+* Some bugfixes.
+* Performance optimization.
+* Option: Apply modifiers. 
+* Option: Merge meshes which have Armature modifier with the same skeleton.
+* Option: Run pview after exporting.
+
+Possible issues:
+I used temporary scene copy to make changes before exporting (e.g. modifiers applying), 
+it's can cause some issues.
+- Incorrect material exporting on merged meshes.
+- Incomplete scene clearing. Whenever we are deleted our temporary scene, 
+Blender won't to delete other objects, created with the scene, so 
+we should do it by hand. I recommend to save the .blend file before 
+exporting and reload it after.
+- Names changing.

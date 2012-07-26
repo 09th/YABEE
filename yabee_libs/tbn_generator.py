@@ -1,6 +1,5 @@
 """ 
-    Part of the YABEE
-    rev 1
+    Part of the YABEE rev 12.0
 """
 import bpy
 from mathutils import *

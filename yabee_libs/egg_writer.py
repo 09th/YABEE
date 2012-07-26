@@ -1,5 +1,4 @@
-""" Part of the YABEE
-    rev 11.2
+""" Part of the YABEE rev 12.0
 """
 
 import bpy, os, sys, shutil
@@ -26,6 +25,7 @@ CALC_TBS = None
 TEXTURE_PROCESSOR = None
 BAKE_LAYERS = None
 MERGE_ACTOR_MESH = None
+APPLY_MOD = None
 PVIEW = True
 STRF = lambda x: '%.6f' % x
 
@@ -214,7 +214,7 @@ class EGGNurbsCurveObjectData(EGGBaseObjectData):
         vtx_pool = ''
         vertices = self.collect_vertices()
         if vertices:
-            vtx_pool = '<VertexPool> %s {\n' % eggSafeName(self.obj_ref.name)
+            vtx_pool = '<VertexPool> %s {\n' % eggSafeName(self.obj_ref.yabee_name)
             for vtx_str in vertices:
                 for line in vtx_str.splitlines():
                     vtx_pool += '  ' + line + '\n'
@@ -247,7 +247,7 @@ class EGGNurbsCurveObjectData(EGGBaseObjectData):
                 cur_str += '  <Knots> { %s }\n' % ' '.join(map(str2f, knots))
                 cur_str += '  <VertexRef> {\n    %s\n    <Ref> { %s } \n  }\n' % ( 
                         ' '.join([str(i) for i in range(idx, idx + \
-                        spline.point_count_u)]), eggSafeName(self.obj_ref.name))
+                        spline.point_count_u)]), eggSafeName(self.obj_ref.yabee_name))
                 cur_str += '}\n'
                 idx += spline.point_count_u
         return cur_str
@@ -482,7 +482,7 @@ class EGGMeshObjectData(EGGBaseObjectData):
                 self.collect_vtx_normal(v, attributes)
                 self.collect_vtx_rgba(idx, attributes)
                 self.collect_vtx_uv(v, idx, attributes)
-                str_attr = ''.join(attributes)
+                str_attr = '\n'.join(attributes)
                 str_attr = str_attr.replace('\n', '\n  ')
                 #vtx = '\n<Vertex> %s {%s\n}' % (idx, str_attr)
                 vtx = '\n<Vertex> ' + str(idx) + ' {' + str_attr + '\n}'
@@ -524,7 +524,7 @@ class EGGMeshObjectData(EGGBaseObjectData):
                     if len(params) == 2:
                         params = (params[0], params[0], params[1])
                     if params[2]:
-                        attributes.append('<TRef> { %s }' % (self.obj_ref.name + '_' + btype))
+                        attributes.append('<TRef> { %s }' % (self.obj_ref.yabee_name + '_' + btype))
         return attributes
     
     def collect_poly_mref(self, face, attributes):
@@ -583,7 +583,7 @@ class EGGMeshObjectData(EGGBaseObjectData):
         @return: list of polygon's attributes.
         """
         vr = ' '.join(map(str,self.poly_vtx_ref[face.index]))
-        attributes.append('<VertexRef> { %s <Ref> { %s }}' % (vr, self.obj_ref.name))
+        attributes.append('<VertexRef> { %s <Ref> { %s }}' % (vr, self.obj_ref.yabee_name))
         return attributes
     
     def collect_polygons(self):
@@ -609,7 +609,7 @@ class EGGMeshObjectData(EGGBaseObjectData):
     def get_vtx_pool_str(self):
         """ Return the vertex pool string in the EGG syntax. 
         """
-        vtx_pool = '<VertexPool> %s {\n' % self.obj_ref.name
+        vtx_pool = '<VertexPool> %s {\n' % self.obj_ref.yabee_name
         vtxs = ''.join(self.collect_vertices())
         vtxs = vtxs.replace('\n', '\n  ')
         vtx_pool += vtxs
@@ -654,9 +654,9 @@ class EGGActorObjectData(EGGMeshObjectData):
                     if gname not in list(joint_vref.keys()):
                         joint_vref[gname] = {}
                     # Object name = vertices pool name
-                    if self.obj_ref.name not in list(joint_vref[gname].keys()):
-                        joint_vref[gname][self.obj_ref.name] = []
-                    joint_vref[gname][self.obj_ref.name].append((idx, g.weight))
+                    if self.obj_ref.yabee_name not in list(joint_vref[gname].keys()):
+                        joint_vref[gname][self.obj_ref.yabee_name] = []
+                    joint_vref[gname][self.obj_ref.yabee_name].append((idx, g.weight))
                 idx += 1
         return joint_vref
         
@@ -748,22 +748,22 @@ class AnimCollector():
                 for mod in obj.modifiers:
                     if mod:
                         if mod.type == 'ARMATURE':
-                            self.bone_groups[obj.name] = EGGAnimJoint(None)
-                            self.bone_groups[obj.name].make_hierarchy_from_list(mod.object.data.bones)
-                            if obj.name not in list(self.obj_anim_ref.keys()):
-                                self.obj_anim_ref[obj.name] = {}
-                            self.obj_anim_ref[obj.name]['<skeleton>'] = \
+                            self.bone_groups[obj.yabee_name] = EGGAnimJoint(None)
+                            self.bone_groups[obj.yabee_name].make_hierarchy_from_list(mod.object.data.bones)
+                            if obj.yabee_name not in list(self.obj_anim_ref.keys()):
+                                self.obj_anim_ref[obj.yabee_name] = {}
+                            self.obj_anim_ref[obj.yabee_name]['<skeleton>'] = \
                                     self.collect_arm_anims(mod.object)
                 if ((obj.data.shape_keys) and (len(obj.data.shape_keys.key_blocks) > 1)):
-                    if obj.name not in list(self.obj_anim_ref.keys()):
-                        self.obj_anim_ref[obj.name] = {}
-                    self.obj_anim_ref[obj.name]['morph'] = self.collect_morph_anims(obj)
+                    if obj.yabee_name not in list(self.obj_anim_ref.keys()):
+                        self.obj_anim_ref[obj.yabee_name] = {}
+                    self.obj_anim_ref[obj.yabee_name]['morph'] = self.collect_morph_anims(obj)
             elif obj.type == 'ARMATURE':
-                self.bone_groups[obj.name] = EGGAnimJoint(None)
-                self.bone_groups[obj.name].make_hierarchy_from_list(obj.data.bones)
-                if obj.name not in list(self.obj_anim_ref.keys()):
-                    self.obj_anim_ref[obj.name] = {}
-                self.obj_anim_ref[obj.name]['<skeleton>'] = \
+                self.bone_groups[obj.yabee_name] = EGGAnimJoint(None)
+                self.bone_groups[obj.yabee_name].make_hierarchy_from_list(obj.data.bones)
+                if obj.yabee_name not in list(self.obj_anim_ref.keys()):
+                    self.obj_anim_ref[obj.yabee_name] = {}
+                self.obj_anim_ref[obj.yabee_name]['<skeleton>'] = \
                         self.collect_arm_anims(obj)
     def collect_morph_anims(self, obj):
         """ Collect an animation data for the morph target (shapekeys).
@@ -955,38 +955,45 @@ def hierarchy_to_list(obj, list):
     for ch in obj.children:
         if ch not in list:
             hierarchy_to_list(ch, list)
-            
+
+
 def merge_objects():
     """ Merge objects, which armatured by single Armature.
     """
     join_to_arm = {}
     selection = []
     for obj in bpy.context.selected_objects:
+        to_join = False
         if obj.type == 'MESH':
             for mod in obj.modifiers:
                 if mod and mod.type == 'ARMATURE':
                     if mod.object not in join_to_arm.keys():
                         join_to_arm[mod.object] = []
                     join_to_arm[mod.object].append(obj)
+                    to_join = True
+        if not to_join:
+            selection.append(obj)
     for objects in join_to_arm.values():
         bpy.ops.object.select_all(action = 'DESELECT')
         for obj in objects:
             obj.select = True
-        print('selected', bpy.context.selected_objects)
-        bpy.context.scene.objects.active = bpy.context.selected_objects[0]
-        bpy.ops.object.join()
+        #print('selected', bpy.context.selected_objects)
+        if len(bpy.context.selected_objects[:]) > 1:
+            bpy.context.scene.objects.active = bpy.context.selected_objects[0]
+            bpy.ops.object.join()
         selection += bpy.context.selected_objects[:]
     bpy.ops.object.select_all(action = 'DESELECT')
     for obj in selection:
         obj.select = True
 
+
 def parented_to_armatured():
     """ Convert parented to bone objects to armatured objects.
     """
     arm_objects = []
-    old_selection = [obj for obj in bpy.context.selected_objects]
+    old_selection = bpy.context.selected_objects[:]
     bpy.ops.object.select_all(action = 'DESELECT')
-    for obj in bpy.data.objects:
+    for obj in bpy.context.scene.objects:
         if obj.type == 'MESH' \
            and obj.parent \
            and obj.parent.type == 'ARMATURE' \
@@ -1016,16 +1023,24 @@ def parented_to_armatured():
         obj.select = True
 
 
+def apply_modifiers():
+    for obj in bpy.context.selected_objects:
+        for mod in obj.modifiers:
+            if mod and mod.type != 'ARMATURE':
+                bpy.context.scene.objects.active = obj
+                bpy.ops.object.modifier_apply(modifier = mod.name)
+
+
 #-----------------------------------------------------------------------
 #                           WRITE OUT                                   
 #-----------------------------------------------------------------------
 def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex, 
               t_path, fp_accuracy, tbs, tex_processor, b_layers, 
-              m_actor, pview):
+              m_actor, apply_m, pview):
     global FILE_PATH, ANIMATIONS, EXPORT_UV_IMAGE_AS_TEXTURE, \
            COPY_TEX_FILES, TEX_PATH, SEPARATE_ANIM_FILE, ANIM_ONLY, \
            STRF, CALC_TBS, TEXTURE_PROCESSOR, BAKE_LAYERS, \
-           MERGE_ACTOR_MESH, PVIEW
+           MERGE_ACTOR_MESH, APPLY_MOD, PVIEW
     imp.reload(io_scene_egg.yabee_libs.texture_processor)
     imp.reload(io_scene_egg.yabee_libs.tbn_generator)
     imp.reload(io_scene_egg.yabee_libs.utils)
@@ -1041,49 +1056,38 @@ def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex,
     TEXTURE_PROCESSOR = tex_processor
     BAKE_LAYERS = b_layers
     MERGE_ACTOR_MESH = m_actor
+    APPLY_MOD = apply_m
+    PVIEW = pview
     s_acc = '%.' + str(fp_accuracy) + 'f'
     def str_f(x):
         #s = '%.' + str(fp_accuracy) + 'f'
         return s_acc % x
     STRF = str_f
+    # Prepare copy of the scene.
     # Sync objects names with custom property "yabee_name" 
     # to be able to get basic object name in the copy of the scene.
     for obj in bpy.data.objects:
         obj.yabee_name = obj.name
+    old_data = {}
+    for d in (bpy.data.materials, bpy.data.objects, bpy.data.textures,
+              bpy.data.armatures, bpy.data.actions, bpy.data.brushes, 
+              bpy.data.cameras, bpy.data.curves, bpy.data.groups, 
+              bpy.data.images, bpy.data.lamps, bpy.data.meshes, 
+              bpy.data.metaballs, bpy.data.movieclips, 
+              bpy.data.node_groups, bpy.data.particles, bpy.data.screens, 
+              bpy.data.scripts, bpy.data.shape_keys, bpy.data.sounds, 
+              bpy.data.speakers, bpy.data.texts, bpy.data.window_managers, 
+              bpy.data.worlds, bpy.data.grease_pencil):
+        old_data[d] = d[:]
     bpy.ops.scene.new(type = 'FULL_COPY')
+    if APPLY_MOD:
+        apply_modifiers()
     parented_to_armatured()
     if MERGE_ACTOR_MESH:
         merge_objects()
     if bpy.ops.object.mode_set.poll():
         bpy.ops.object.mode_set(mode='OBJECT')
     gr = Group(None)
-    """
-    # exclude objects, parented to the bones and his children
-    # objects, parented to the bones will be process later in the Armature
-    b_ex_list = [obj for obj in bpy.context.selected_objects if obj.parent_type == 'BONE']
-    exclude_list = []
-    for b_ex in b_ex_list:
-        tmp_list = []
-        hierarchy_to_list(b_ex, tmp_list)
-        exclude_list += tmp_list
-    exclude_list = set(exclude_list)
-    obj_list = [obj for obj in bpy.context.selected_objects if (obj not in exclude_list)]
-    # include armatures, wich bones has exported children
-    # and exclude if Armature in modifiers of any exported objects
-    for b_ex in b_ex_list:
-        if b_ex.parent not in obj_list:
-            print('INCLUDE Armature \'%s\'' % b_ex.parent.name)
-            obj_list.append(b_ex.parent)
-    for ar_in in [obj for obj in obj_list if obj.type == 'ARMATURE']:
-        for b_in in [obj for obj in obj_list]:
-            for mod in b_in.modifiers:
-                if mod.type == 'ARMATURE' and mod.object == ar_in:
-                    append = False
-                    if mod.object in obj_list:
-                        del obj_list[obj_list.index(mod.object)]
-                        print('EXCLUDE Armature \'%s\' since it\'s a modifier' % mod.object.name)
-    gr.make_hierarchy_from_list(obj_list)
-    """
     obj_list = [obj for obj in bpy.context.selected_objects if obj.type != 'ARMATURE']
     print('obj list', obj_list)
     gr.make_hierarchy_from_list(obj_list)
@@ -1137,7 +1141,18 @@ def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex,
             subprocess.Popen(['pview', fp] + fpa)
         except:
             print('ERROR: Can\'t execute pview')
+    # Clearing the scene. 
+    # (!) Possible Incomplete. 
+    # Whenever we are deleted our copy of the scene, 
+    # Blender won't to delete other objects, created with the scene, so 
+    # we should do it by hand. I recommend to save the .blend file before 
+    # exporting and reload it after.
     bpy.ops.scene.delete()
+    for d in old_data:
+        for obj in d:
+            if obj not in old_data[d]:
+                obj.user_clear()
+                d.remove(obj)
 
 
 def write_out_test(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex, 
