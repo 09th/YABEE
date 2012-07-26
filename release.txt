@@ -4,6 +4,7 @@
 * Option: Apply modifiers. 
 * Option: Merge meshes which have Armature modifier with the same skeleton.
 * Option: Run pview after exporting.
+* Collide and ObjectType recognize.
 
 Possible issues:
 I used temporary scene copy to make changes before exporting (e.g. modifiers applying), 
