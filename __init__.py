@@ -1,5 +1,5 @@
 """ Part of the YABEE
-    rev 1.1
+    rev 12.1
 """
 bl_info = {
     "name": "Panda3d EGG format",
@@ -339,7 +339,7 @@ class ExportPanda3DEGG(bpy.types.Operator, ExportHelper):
                             sett.opt_anim_only,
                             sett.opt_copy_tex_files, 
                             sett.opt_tex_path, 
-                            3,
+                            6,
                             sett.opt_tbs_proc,
                             sett.opt_tex_proc,
                             sett.get_bake_dict(),
@@ -373,6 +373,16 @@ def register():
     # Hack again. I use custom property to be able to get basic 
     # object name in the copy of the scene.
     bpy.types.Object.yabee_name = StringProperty(name="YABEE_Name", default="Unknown")
+    bpy.types.Mesh.yabee_name = StringProperty(name="YABEE_Name", default="Unknown")
+    bpy.types.Material.yabee_name = StringProperty(name="YABEE_Name", default="Unknown")
+    bpy.types.Texture.yabee_name = StringProperty(name="YABEE_Name", default="Unknown")
+    bpy.types.Armature.yabee_name = StringProperty(name="YABEE_Name", default="Unknown")
+    bpy.types.Curve.yabee_name = StringProperty(name="YABEE_Name", default="Unknown")
+    #bpy.types.ShapeKey.yabee_name = StringProperty(name="YABEE_Name", default="Unknown")
+    bpy.types.Key.yabee_name = StringProperty(name="YABEE_Name", default="Unknown")
+    bpy.types.Image.yabee_name = StringProperty(name="YABEE_Name", default="Unknown")
+    bpy.types.Bone.yabee_name = StringProperty(name="YABEE_Name", default="Unknown")
+    bpy.types.PoseBone.yabee_name = StringProperty(name="YABEE_Name", default="Unknown")
 
     bpy.types.INFO_MT_file_export.append(menu_func_export)
 

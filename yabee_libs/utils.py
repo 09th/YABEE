@@ -1,5 +1,5 @@
 """ 
-    Part of the YABEE rev 12.0
+    Part of the YABEE rev 12.1
 """
 import bpy, os, sys, shutil
 import bpy_extras
@@ -25,15 +25,22 @@ def save_image(img, file_path, text_path):
         old_f = img.name + '.' + bpy.context.scene.render.image_settings.file_format.lower()
     rel_path = os.path.join(text_path, old_f)
     if os.name == 'nt':
-        rel_path = rel_path.replace(r"\\",r"/")
+        rel_path = rel_path.replace(r"\\",r"/").replace('\\', '/')
     new_dir, eg_f = os.path.split(file_path)
     new_dir = os.path.abspath(os.path.join(new_dir, text_path))
     if not os.path.exists(new_dir):
         os.makedirs(new_dir)
-    if img.is_dirty:
+    #print('IMG', img, img.packed_file)
+    if img.is_dirty or bool(img.packed_file):
         r_path = os.path.abspath(os.path.join(new_dir, old_f))
         img.save_render(r_path)
         print('RENDER IMAGE to %s; rel path: %s' % (r_path, rel_path))
+    #elif bool(img.packed_file):
+    #    r_path = os.path.abspath(os.path.join(new_dir, old_f))
+    #    img.filepath = r_path
+    #    img.unpack()
+    #    img.filepath = oldpath
+    #    print('UNPACK IMAGE to %s; rel path: %s' % (r_path, rel_path))
     else:
         newf = os.path.join(new_dir, old_f)
         if oldpath != newf:

@@ -1,5 +1,5 @@
 """ 
-    Part of the YABEE rev 12.0
+    Part of the YABEE rev 12.1
 """
 import bpy
 if __name__ != '__main__':
@@ -58,18 +58,23 @@ class SimpleTextures():
                         for f in uv.data:
                             #if f.use_image:
                             if f.image.source == 'FILE':
-                                if not f.image.name in tex_list:
+                                #if not f.image.name in tex_list:
+                                if not f.image.yabee_name in tex_list:
                                     name = uv.name
                                     if num == 0: name = ''
                                     t_path = bpy.path.abspath(f.image.filepath)
                                     if self.copy_tex:
                                         t_path = save_image(f.image, self.file_path, self.tex_path)
-                                    #tex_list[f.image.name] = (name, t_path, 'MODULATE')
-                                    tex_list[f.image.name] = {'path': t_path,
+                                    #tex_list[f.image.name] = {'path': t_path,
+                                    #                          'scalars': [] }
+                                    #tex_list[f.image.name]['scalars'].append(('envtype', 'MODULATE'))
+                                    #if name:
+                                    #    tex_list[f.image.name]['scalars'].append(('uv-name', name))
+                                    tex_list[f.image.yabee_name] = {'path': t_path,
                                                               'scalars': [] }
-                                    tex_list[f.image.name]['scalars'].append(('envtype', 'MODULATE'))
+                                    tex_list[f.image.yabee_name]['scalars'].append(('envtype', 'MODULATE'))
                                     if name:
-                                        tex_list[f.image.name]['scalars'].append(('uv-name', name))
+                                        tex_list[f.image.yabee_name]['scalars'].append(('uv-name', name))
                 # General textures
                 for f in obj.data.polygons:
                     if obj.data.uv_textures and f.material_index < len(obj.data.materials):
@@ -86,7 +91,8 @@ class SimpleTextures():
                                 uv_name = '' #obj.data.uv_textures[0].name
                     
                             
-                            if not tex.texture.name in list(tex_list.keys()):
+                            #if not tex.texture.name in list(tex_list.keys()):
+                            if not tex.texture.yabee_name in list(tex_list.keys()):
                                 #try:
                                     envtype = 'MODULATE'
                                     if tex.use_map_normal:
@@ -101,20 +107,25 @@ class SimpleTextures():
                                     t_path = bpy.path.abspath(tex.texture.image.filepath)
                                     if self.copy_tex:
                                         t_path = save_image(tex.texture.image, self.file_path, self.tex_path)
-                                    #tex_list[tex.texture.name] = (uv_name, t_path, envtype)
-                                    tex_list[tex.texture.name] = {'path': t_path,
+                                    #tex_list[tex.texture.name] = {'path': t_path,
+                                    #                              'scalars': [] }
+                                    #tex_list[tex.texture.name]['scalars'].append(('envtype', envtype))
+                                    tex_list[tex.texture.yabee_name] = {'path': t_path,
                                                                   'scalars': [] }
-                                    tex_list[tex.texture.name]['scalars'].append(('envtype', envtype))
+                                    tex_list[tex.texture.yabee_name]['scalars'].append(('envtype', envtype))
                                     
                                     if(tex.texture.use_mipmap):
-                                        tex_list[tex.texture.name]['scalars'].append(('minfilter', 'LINEAR_MIPMAP_LINEAR'))
-                                        tex_list[tex.texture.name]['scalars'].append(('magfilter', 'LINEAR_MIPMAP_LINEAR'))
+                                        #tex_list[tex.texture.name]['scalars'].append(('minfilter', 'LINEAR_MIPMAP_LINEAR'))
+                                        #tex_list[tex.texture.name]['scalars'].append(('magfilter', 'LINEAR_MIPMAP_LINEAR'))
+                                        tex_list[tex.texture.yabee_name]['scalars'].append(('minfilter', 'LINEAR_MIPMAP_LINEAR'))
+                                        tex_list[tex.texture.yabee_name]['scalars'].append(('magfilter', 'LINEAR_MIPMAP_LINEAR'))
                                     
                                     wrap_mode = 'REPEAT'
                                     if(tex.texture.extension == 'CLIP'):
                                         wrap_mode = 'CLAMP'
                                     
-                                    tex_list[tex.texture.name]['scalars'].append(('wrap', wrap_mode))     
+                                    #tex_list[tex.texture.name]['scalars'].append(('wrap', wrap_mode))     
+                                    tex_list[tex.texture.yabee_name]['scalars'].append(('wrap', wrap_mode))     
                                     
                                     if(envtype == 'MODULATE'):
                                         if(alpha_tex and not alpha_map_assigned):
@@ -122,12 +133,15 @@ class SimpleTextures():
                                             alpha_path = bpy.path.abspath(alpha_tex.texture.image.filepath)
                                             if self.copy_tex:
                                                 alpha_path = save_image(alpha_tex.texture.image, self.file_path, self.tex_path)
-                                            tex_list[tex.texture.name]['scalars'].append(('alpha-file', '\"%s\"' % alpha_path))
+                                            #tex_list[tex.texture.name]['scalars'].append(('alpha-file', '\"%s\"' % alpha_path))
+                                            tex_list[tex.texture.yabee_name]['scalars'].append(('alpha-file', '\"%s\"' % alpha_path))
                                             
                                             if(obj.data.materials[f.material_index].game_settings.alpha_blend == 'CLIP'):
-                                                tex_list[tex.texture.name]['scalars'].append(('alpha', 'BINARY'))
+                                                #tex_list[tex.texture.name]['scalars'].append(('alpha', 'BINARY'))
+                                                tex_list[tex.texture.yabee_name]['scalars'].append(('alpha', 'BINARY'))
                                     if uv_name:
-                                        tex_list[tex.texture.name]['scalars'].append(('uv-name', uv_name))
+                                        #tex_list[tex.texture.name]['scalars'].append(('uv-name', uv_name))
+                                        tex_list[tex.texture.yabee_name]['scalars'].append(('uv-name', uv_name))
                                 #except:
                                 #    print('ERROR: can\'t get texture image on %s.' % tex.texture.name)
         return tex_list
