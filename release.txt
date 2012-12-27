@@ -1,3 +1,7 @@
+------------- Bugfix R12.2 ---------------
+* Fixed UV exporting
+* Remove internal TBS Calculation (unclaimed,  too many bugs)
+
 ------------- Bugfix R12.1 ---------------
 * Fixed multiple bugs on objects "naming", which in fact made "R12" useless
 

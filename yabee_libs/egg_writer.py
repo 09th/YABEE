@@ -4,13 +4,14 @@
 import bpy, os, sys, shutil
 from mathutils import *
 from math import pi
-import io_scene_egg.yabee_libs.tbn_generator
+#import io_scene_egg.yabee_libs.tbn_generator
+import io_scene_egg.yabee_libs
 from io_scene_egg.yabee_libs.texture_processor import SimpleTextures, TextureBaker
 from io_scene_egg.yabee_libs.utils import *
 import subprocess
 import imp
 imp.reload(io_scene_egg.yabee_libs.texture_processor)
-imp.reload(io_scene_egg.yabee_libs.tbn_generator)
+#imp.reload(io_scene_egg.yabee_libs.tbn_generator)
 imp.reload(io_scene_egg.yabee_libs.utils)
 
 
@@ -321,10 +322,10 @@ class EGGMeshObjectData(EGGBaseObjectData):
         self.poly_vtx_ref = self.pre_convert_poly_vtx_ref()
         self.colors_vtx_ref = self.pre_convert_vtx_color()
         self.uvs_list = self.pre_convert_uvs()
-        if CALC_TBS == 'INTERNAL':
-            self.tbs = io_scene_egg.yabee_libs.tbn_generator.TBNGenerator(obj).generate()
-        else:
-            self.tbs = None
+        #if CALC_TBS == 'INTERNAL':
+        #    self.tbs = io_scene_egg.yabee_libs.tbn_generator.TBNGenerator(obj).generate()
+        #else:
+        self.tbs = None
             
 
 
@@ -349,12 +350,11 @@ class EGGMeshObjectData(EGGBaseObjectData):
         individual vertices for each polygon.
         """
         uv_list = []
-        self.obj_ref.data.update(calc_tessface=True)
-        for uv_layer in self.obj_ref.data.tessface_uv_textures:
+        for uv_layer in self.obj_ref.data.uv_layers:
             data = []
-            for uv_face in uv_layer.data:
-                for u,v in uv_face.uv:
-                    data.append((u,v))
+            for uv_data in uv_layer.data:
+                u,v = uv_data.uv.to_2d()
+                data.append((u,v))
             uv_list.append((uv_layer.name, data))
         return uv_list
         
@@ -1019,7 +1019,7 @@ def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex,
            STRF, CALC_TBS, TEXTURE_PROCESSOR, BAKE_LAYERS, \
            MERGE_ACTOR_MESH, APPLY_MOD, PVIEW
     imp.reload(io_scene_egg.yabee_libs.texture_processor)
-    imp.reload(io_scene_egg.yabee_libs.tbn_generator)
+    #imp.reload(io_scene_egg.yabee_libs.tbn_generator)
     imp.reload(io_scene_egg.yabee_libs.utils)
     # === prepare to write ===
     FILE_PATH = fname

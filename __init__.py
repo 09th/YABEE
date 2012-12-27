@@ -81,7 +81,7 @@ class YABEEProperty(bpy.types.PropertyGroup):
             name="TBS generation",
             description="Export all textures as MODULATE or bake texture layers",
             items=(('PANDA', "Panda", "Use egg-trans to calculate TBS (Need installed Panda3D)."),
-                   ('INTERNAL', "Internal", "Use internal YABEE TBS generator"),
+                   #('INTERNAL', "Internal", "Use internal YABEE TBS generator"),
                    ('NO', "No", "Do not generate TBS.")),
             default='NO',
             )
