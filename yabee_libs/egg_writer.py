@@ -1,4 +1,4 @@
-""" Part of the YABEE rev 12.1
+""" Part of the YABEE rev 12.3
 """
 
 import bpy, os, sys, shutil
@@ -177,7 +177,10 @@ class EGGBaseObjectData:
     
     def __init__(self, obj):
         self.obj_ref = obj
-        self.transform_matrix = obj.matrix_world
+        if obj.parent:
+            self.transform_matrix = obj.matrix_local
+        else:
+            self.transform_matrix = obj.matrix_world
         
     def get_transform_str(self):
         """ Return the EGG string representation of object transforms.
@@ -892,6 +895,8 @@ def get_egg_materials_str():
             mat_str += '  <Scalar> diffr { %s }\n' % STRF(mat.diffuse_color[0] * mat.diffuse_intensity)
             mat_str += '  <Scalar> diffg { %s }\n' % STRF(mat.diffuse_color[1] * mat.diffuse_intensity)
             mat_str += '  <Scalar> diffb { %s }\n' % STRF(mat.diffuse_color[2] * mat.diffuse_intensity)
+            if mat.alpha != 1.0:
+                mat_str += '  <Scalar> diffa { %s }\n' % STRF(mat.alpha)
         elif TEXTURE_PROCESSOR == 'BAKE':
             mat_str += '  <Scalar> diffr { 1.0 }\n'
             mat_str += '  <Scalar> diffg { 1.0 }\n'
@@ -899,6 +904,8 @@ def get_egg_materials_str():
         mat_str += '  <Scalar> specr { %s }\n' % STRF(mat.specular_color[0] * mat.specular_intensity)
         mat_str += '  <Scalar> specg { %s }\n' % STRF(mat.specular_color[1] * mat.specular_intensity)
         mat_str += '  <Scalar> specb { %s }\n' % STRF(mat.specular_color[2] * mat.specular_intensity)
+        if mat.specular_alpha != 1.0:
+            mat_str += '  <Scalar> speca { %s }\n' % STRF(mat.specular_alpha)
         mat_str += '  <Scalar> shininess { %s }\n' % (mat.specular_hardness / 512 * 128)
         mat_str += '  <Scalar> emitr { %s }\n' % STRF(mat.emit * 0.1)
         mat_str += '  <Scalar> emitg { %s }\n' % STRF(mat.emit * 0.1)
