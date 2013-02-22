@@ -1,5 +1,5 @@
 """ Part of the YABEE
-    rev 12.1
+    rev 12.3
 """
 bl_info = {
     "name": "Panda3d EGG format",
@@ -145,7 +145,8 @@ class YABEEProperty(bpy.types.PropertyGroup):
         row.operator("export.yabee_help", icon="URL", text="Help")
         layout.row().label('Animation:')
         row = layout.row()
-        row.template_list(self.opt_anim_list, 
+        row.template_list("UI_UL_list", "anim_collection",
+                          self.opt_anim_list, 
                           "anim_collection", 
                           self.opt_anim_list, 
                           "active_index", 
