@@ -1,3 +1,8 @@
+------------- Release 13.0 ---------------
+* Some bugfixes.
+* Blender 2.66 support
+* Experimental automaticaly shadow and AO baking
+
 ------------- Bugfix R12.2 ---------------
 * Fixed UV exporting
 * Remove internal TBS Calculation (unclaimed,  too many bugs)
