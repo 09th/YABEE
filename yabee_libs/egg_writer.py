@@ -512,16 +512,17 @@ class EGGMeshObjectData(EGGBaseObjectData):
                     if ((tex.texture_coords == 'UV') 
                          and (not tex.texture.use_nodes)
                          and (mat.use_textures[tex_idx])):
-                            if tex.texture.image and tex.texture.image.source == 'FILE' and not tex.use_map_alpha:
+                            if tex.texture.type == 'IMAGE' and tex.texture.image and tex.texture.image.source == 'FILE' and not tex.use_map_alpha:
                                 attributes.append('<TRef> { %s }' % tex.texture.yabee_name)
                     tex_idx += 1
-        elif TEXTURE_PROCESSOR == 'BAKE':
-            if self.obj_ref.data.uv_textures:
-                for btype, params in BAKE_LAYERS.items():
-                    if len(params) == 2:
-                        params = (params[0], params[0], params[1])
-                    if params[2]:
-                        attributes.append('<TRef> { %s }' % (self.obj_ref.yabee_name + '_' + btype))
+        #elif TEXTURE_PROCESSOR == 'BAKE':
+        if self.obj_ref.data.uv_textures:
+            for btype, params in BAKE_LAYERS.items():
+                if len(params) == 2:
+                    params = (params[0], params[0], params[1])
+                if params[2]:
+                    attributes.append('<TRef> { %s }' % (self.obj_ref.yabee_name + '_' + btype))
+        #return attributes
         return attributes
     
     def collect_poly_mref(self, face, attributes):
@@ -920,9 +921,9 @@ def get_egg_materials_str():
                             COPY_TEX_FILES, 
                             FILE_PATH, TEX_PATH)
         used_textures = st.get_used_textures()
-    elif TEXTURE_PROCESSOR == 'BAKE':
-        tb = TextureBaker(bpy.context.selected_objects, FILE_PATH, TEX_PATH)
-        used_textures = tb.bake(BAKE_LAYERS)
+    #elif TEXTURE_PROCESSOR == 'BAKE':
+    tb = TextureBaker(bpy.context.selected_objects, FILE_PATH, TEX_PATH)
+    used_textures = tb.bake(BAKE_LAYERS)
     for name, params in used_textures.items():
         mat_str += '<Texture> %s {\n' % name
         mat_str += '  "' + convertFileNameToPanda(params['path']) + '"\n'
@@ -1015,6 +1016,23 @@ def apply_modifiers():
                 bpy.ops.object.modifier_apply(modifier = mod.name)
 
 
+def generate_shadow_uvs():
+    auvs = {}
+    for obj in [obj for obj in bpy.context.selected_objects if obj.type == 'MESH']:
+        auvs[obj.name] = obj.data.uv_textures.active
+        if 'yabee_shadow' not in obj.data.uv_textures.keys():
+            obj.data.uv_textures.new('yabee_shadow')
+        #else:
+        #    obj.data.uv_textures.active = obj.data.uv_textures['yabee_shadow']
+        #    obj.data.uv_layers.active = obj.data.uv_layers['yabee_shadow']
+    #bpy.ops.object.mode_set.poll()
+    obj.data.uv_textures.active = obj.data.uv_textures['yabee_shadow']
+    obj.data.update()
+    bpy.ops.uv.smart_project(angle_limit = 66, island_margin = 0.03)
+    for obj in [obj for obj in bpy.context.selected_objects if obj.type == 'MESH']:
+        obj.data.uv_textures.active = auvs[obj.name]
+        obj.data.update()
+
 #-----------------------------------------------------------------------
 #                           WRITE OUT                                   
 #-----------------------------------------------------------------------
@@ -1084,6 +1102,8 @@ def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex,
         merge_objects()
     if bpy.ops.object.mode_set.poll():
         bpy.ops.object.mode_set(mode='OBJECT')
+    # Generate UV layers for shadows
+    generate_shadow_uvs()
     gr = Group(None)
     obj_list = [obj for obj in bpy.context.scene.objects if obj.type != 'ARMATURE' and obj.yabee_name in selected_obj]
     print('obj list', obj_list)

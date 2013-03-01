@@ -9,6 +9,8 @@ BAKE_TYPES = {'diffuse': ('TEXTURE', 'MODULATE'),
               'normal': ('NORMALS', 'NORMAL'),
               'gloss': ('SPEC_INTENSITY', 'GLOSS'),
               'glow': ('EMIT', 'GLOW'),
+              'AO': ('AO', 'MODULATE'),
+              'shadow': ('SHADOW', 'MODULATE')
               }
 
 class SimpleTextures():
@@ -23,7 +25,7 @@ class SimpleTextures():
     def is_slot_valid(self, tex):
         if ((tex) and (not tex.texture.use_nodes)):
             if tex.texture_coords == 'UV':
-                if tex.texture.image and tex.texture.image.source == 'FILE':
+                if tex.texture.type == 'IMAGE' and tex.texture.image and tex.texture.image.source == 'FILE':
                     return True
         
         return False
@@ -164,9 +166,10 @@ class TextureBaker():
             return None
         
     def _save_obj_props(self, obj):
-        props = {'uvs':[], 'textures':{}}
+        props = {'uvs':[], 'textures':{}, 'active_uv': None}
         active_uv = self.get_active_uv(obj)
         if active_uv:
+            props['active_uv'] = active_uv
             for uvd in active_uv.data:
                 #props['uvs'].append((uvd.use_image, uvd.image))
                 props['uvs'].append(uvd.image)
@@ -175,6 +178,10 @@ class TextureBaker():
     def _restore_obj_props(self, obj):
         if obj.name in self.saved_objs.keys():
             props = self.saved_objs[obj.name]
+            if props['active_uv']:
+                obj.data.uv_textures.active = props['active_uv']
+                obj.data.update()
+                #obj.data.uv_layers.active = props['active_uv']
             active_uv = self.get_active_uv(obj)
             if active_uv:
                 for id, uvs in enumerate(props['uvs']):
@@ -187,7 +194,7 @@ class TextureBaker():
         for obj in self.obj_list:
             if obj.type == 'MESH' and self.get_active_uv(obj):
                 self._save_obj_props(obj)
-                img = bpy.data.images.new(obj.name + '_' + btype, tsizex, tsizey)
+                img = bpy.data.images.new(obj.yabee_name + '_' + btype, tsizex, tsizey)
                 self.rendered_images[obj.name] = img.name
                 active_uv = self.get_active_uv(obj)
                 active_uv_idx = obj.data.uv_textures[:].index(active_uv)
@@ -195,7 +202,7 @@ class TextureBaker():
                     for uvd in active_uv.data:
                         #uvd.use_image = True
                         uvd.image = img
-                    assigned_data[obj.name + '_' + btype] = (active_uv, img, active_uv_idx, BAKE_TYPES[btype][1])
+                    assigned_data[obj.yabee_name + '_' + btype] = (active_uv, img, active_uv_idx, BAKE_TYPES[btype][1])
                 else:
                     print('ERROR: %s have not active UV layer' % obj.name)
                     return None
@@ -237,6 +244,13 @@ class TextureBaker():
                     paths = None
                     if len(self.obj_list) == 0:
                         return False
+                    if btype in ('AO', 'shadow'):
+                        # Switch active UV layer to generated shadow layer
+                        for obj in self.obj_list:
+                            if 'yabee_shadow' in obj.data.uv_textures.keys():
+                                obj.data.uv_textures.active = obj.data.uv_textures['yabee_shadow']
+                                obj.data.update()
+                                #obj.data.uv_layers.active = obj.data.uv_textures['yabee_shadow']
                     assigned_data = self._prepare_images(btype, params[0], params[1])
                     if assigned_data:
                         old_selected =  bpy.context.selected_objects[:]
@@ -283,7 +297,11 @@ class TextureBaker():
                 else:
                     print('WARNING: unknown bake layer "%s"' % btype)
         return tex_list
-                    
+        
+
+
+
+
 if __name__ == '__main__':
     import os, sys
     

@@ -75,6 +75,8 @@ class YABEEProperty(bpy.types.PropertyGroup):
     opt_bake_normal = PointerProperty(type=EGGBakeProperty)
     opt_bake_gloss = PointerProperty(type=EGGBakeProperty)
     opt_bake_glow = PointerProperty(type=EGGBakeProperty)
+    opt_bake_AO = PointerProperty(type=EGGBakeProperty)
+    opt_bake_shadow = PointerProperty(type=EGGBakeProperty)
     
             
     opt_tbs_proc = EnumProperty(
@@ -168,15 +170,17 @@ class YABEEProperty(bpy.types.PropertyGroup):
         layout.row().prop(self, 'opt_separate_anim_files')
         if not self.opt_anim_only:
             layout.row().prop(self, 'opt_tbs_proc')
+            box = layout.box()
+            box.row().prop(self, 'opt_tex_proc')
             if self.opt_tex_proc == 'BAKE':
-                box = layout.box()
-                box.row().prop(self, 'opt_tex_proc')
                 self.opt_bake_diffuse.draw(box.row(align = True), "Diffuse")
                 self.opt_bake_normal.draw(box.row(align = True), "Normal")
                 self.opt_bake_gloss.draw(box.row(align = True), "Gloss")
                 self.opt_bake_glow.draw(box.row(align = True), "Glow")
-            else:
-                layout.row().prop(self, 'opt_tex_proc')
+            self.opt_bake_AO.draw(box.row(align = True), "AO")
+            self.opt_bake_shadow.draw(box.row(align = True), "Shadow")
+            #else:
+            #    layout.row().prop(self, 'opt_tex_proc')
             if self.opt_tex_proc == 'SIMPLE':
                 layout.row().prop(self, 'opt_export_uv_as_texture')
             if self.opt_copy_tex_files or self.opt_tex_proc == 'BAKE':
@@ -195,10 +199,18 @@ class YABEEProperty(bpy.types.PropertyGroup):
         opts = ((self.opt_bake_diffuse, 'diffuse'),
                 (self.opt_bake_normal, 'normal'),
                 (self.opt_bake_gloss, 'gloss'),
-                (self.opt_bake_glow, 'glow')
+                (self.opt_bake_glow, 'glow'),
+                (self.opt_bake_AO, 'AO'),
+                (self.opt_bake_shadow, 'shadow')
                 )
         for opt, name in opts:
-            d[name] = (opt.res_x, opt.res_y, opt.export)
+            if self.opt_tex_proc == 'SIMPLE':
+                if name in ('AO', 'shadow'):
+                    d[name] = (opt.res_x, opt.res_y, opt.export)
+                else:
+                    d[name] = (opt.res_x, opt.res_y, False)
+            else:
+                d[name] = (opt.res_x, opt.res_y, opt.export)
         return d
     
     def check_warns(self, context):
@@ -219,6 +231,10 @@ class YABEEProperty(bpy.types.PropertyGroup):
         self.opt_bake_gloss.res_x, self.opt_bake_gloss.res_y = 512, 512
         self.opt_bake_glow.export = False
         self.opt_bake_glow.res_x, self.opt_bake_glow.res_y = 512, 512
+        self.opt_bake_AO.export = False
+        self.opt_bake_AO.res_x, self.opt_bake_AO.res_y = 512, 512
+        self.opt_bake_shadow.export = False
+        self.opt_bake_shadow.res_x, self.opt_bake_shadow.res_y = 512, 512
         self.opt_export_uv_as_texture = False
         self.opt_copy_tex_files = True
         self.opt_separate_anim_files = True
