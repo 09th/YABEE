@@ -32,6 +32,7 @@ def save_image(img, file_path, text_path):
         os.makedirs(new_dir)
     #print('IMG', img, img.packed_file)
     if img.is_dirty or bool(img.packed_file):
+        bpy.context.scene.render.image_settings.color_mode = 'RGBA'
         r_path = os.path.abspath(os.path.join(new_dir, old_f))
         img.save_render(r_path)
         print('RENDER IMAGE to %s; rel path: %s' % (r_path, rel_path))

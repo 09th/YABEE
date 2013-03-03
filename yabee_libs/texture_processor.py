@@ -137,6 +137,7 @@ class SimpleTextures():
                                                 alpha_path = save_image(alpha_tex.texture.image, self.file_path, self.tex_path)
                                             #tex_list[tex.texture.name]['scalars'].append(('alpha-file', '\"%s\"' % alpha_path))
                                             tex_list[tex.texture.yabee_name]['scalars'].append(('alpha-file', '\"%s\"' % alpha_path))
+                                            tex_list[tex.texture.yabee_name]['scalars'].append(('alpha-file-channel', '4'))
                                             
                                             if(obj.data.materials[f.material_index].game_settings.alpha_blend == 'CLIP'):
                                                 #tex_list[tex.texture.name]['scalars'].append(('alpha', 'BINARY'))
@@ -247,7 +248,7 @@ class TextureBaker():
                     if btype in ('AO', 'shadow'):
                         # Switch active UV layer to generated shadow layer
                         for obj in self.obj_list:
-                            if 'yabee_shadow' in obj.data.uv_textures.keys():
+                            if obj.type == 'MESH' and 'yabee_shadow' in obj.data.uv_textures.keys():
                                 obj.data.uv_textures.active = obj.data.uv_textures['yabee_shadow']
                                 obj.data.update()
                                 #obj.data.uv_layers.active = obj.data.uv_textures['yabee_shadow']
