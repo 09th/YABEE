@@ -35,9 +35,63 @@ class Group:
     Representation of the EGG <Group> hierarchy structure as the
     linked list "one to many".
     """
-    def __init__(self, obj):
+    def __init__(self, obj, arm_owner = None):
         self.object = obj #: Link to the blender's object
-        self.childs = []  #: List of children (Groups)
+        self._yabee_object = None # Internal data
+        self.children = []  #: List of children (Groups)
+        self.arm_owner = None # Armature as owner for bones
+        if arm_owner and obj.__class__ == bpy.types.Bone:
+            self.arm_owner = arm_owner
+        if self.object and self.object.__class__ != bpy.types.Bone:
+            if self.object.type == 'MESH':
+                if 'ARMATURE' in [m.type for m in self.object.modifiers]:
+                    self._yabee_object = EGGActorObjectData(self.object)
+                else:
+                    self._yabee_object = EGGMeshObjectData(self.object)
+            elif self.object.type == 'CURVE':
+                self._yabee_object = EGGNurbsCurveObjectData(self.object)
+            elif self.object.type == 'ARMATURE':
+                pass
+            else:
+                self._yabee_object = EGGBaseObjectData(self.object)
+    
+    def update_joints_data(self, actor_data_list = None):
+        if actor_data_list == None:
+            actor_data_list = []
+            hierarchy_to_list(self, actor_data_list, base_filter = EGGActorObjectData)
+            #print(tmp)
+        if not self._yabee_object and self.object \
+           and self.object.__class__ == bpy.types.Bone:
+            vref = []
+            for ad in actor_data_list:
+                if self.object.name in ad._yabee_object.joint_vtx_ref.keys():
+                    vref.append(ad._yabee_object.joint_vtx_ref[self.object.name])
+            self._yabee_object = EGGJointObjectData(self.object, vref, self.arm_owner)
+        for ch in self.children:
+            ch.update_joints_data(actor_data_list)
+    
+    def check_parenting(self, p, o, obj_list):
+        # 0 - Not
+        # 1 - Object to object
+        # 2 - Bone to Bone
+        # 3 - Object to Bone
+        if o.__class__ == bpy.types.Bone and not o.parent:
+            return 0
+        if p.__class__ != bpy.types.Bone and o.parent == p \
+           and not (p and p.type == 'ARMATURE' and o.parent_bone):
+            return 1
+        if not p and (str(o.parent) not in map(str,obj_list)):
+            return 1
+        if p and p.__class__ == bpy.types.Bone \
+           and o.__class__ == bpy.types.Bone and o.parent == p:
+            return 2
+        # ACHTUNG!!! Be careful: If we have two armatures with the 
+        # same bones name and object, attached to it, 
+        # then we can get unexpected results!
+        if o.__class__ != bpy.types.Bone and o.parent_type == 'BONE' \
+           and p and o.parent_bone == p.name:
+            return 3
+        return 0
     
     def make_hierarchy_from_list(self, obj_list):
         """ This function make <Group> hierarchy from the list of
@@ -46,13 +100,21 @@ class Group:
         
         @param obj_list: tuple or lis of blender's objects.
         """
+        if self.object and self.object.__class__ != bpy.types.Bone and \
+        self.object.type == 'ARMATURE':
+            obj_list += self.object.data.bones
+            for bone in self.object.data.bones:
+                if not bone.parent:
+                    gr = self.__class__(bone, self.object)
+                    self.children.append(gr)
+                    gr.make_hierarchy_from_list(obj_list)
         for obj in obj_list:
-            if ((obj.parent == self.object) or 
-                ((self.object == None) and 
-                 (str(obj.parent) not in map(str,obj_list)) and 
-                 (str(obj) not in [str(ch.object) for ch in self.childs]))):
-                gr = self.__class__(obj)
-                self.childs.append(gr)
+            if self.check_parenting(self.object, obj, obj_list) > 0:
+                if obj.__class__ == bpy.types.Bone:
+                    gr = self.__class__(obj, self.arm_owner)
+                else:
+                    gr = self.__class__(obj)
+                self.children.append(gr)
                 gr.make_hierarchy_from_list(obj_list)
                 
     def print_hierarchy(self, level = 0):
@@ -61,7 +123,7 @@ class Group:
         @param level: starting indent level.
         """
         print('-' * level, self.object)
-        for ch in self.childs:
+        for ch in self.children:
             ch.print_hierarchy(level+1)
             
     def get_tags_egg_str(self, level = 0):
@@ -95,37 +157,26 @@ class Group:
         """
         egg_str = ''
         if self.object:
-            egg_str += '%s<Group> %s {\n' % ('  ' * level, eggSafeName(self.object.yabee_name))
-            egg_str += self.get_tags_egg_str(level + 1)
-            if self.object.type == 'MESH':
-                if (('ARMATURE' in [m.type for m in self.object.modifiers]) or 
-                    (((self.object.data.shape_keys) and 
-                      (len(self.object.data.shape_keys.key_blocks) > 1)))):
-                    egg_str += '%s<Dart> { 1 }\n' % ('  ' * (level + 1))
-                    egg_mesh = EGGActorObjectData(self.object)
-                else:
-                    egg_mesh = EGGMeshObjectData(self.object)
-                for line in egg_mesh.get_full_egg_str().splitlines():
-                    egg_str += '%s%s\n' % ('  ' * (level + 1), line)
-            elif self.object.type == 'CURVE':
-                egg_obj = EGGNurbsCurveObjectData(self.object)
-                for line in egg_obj.get_full_egg_str().splitlines():
-                    egg_str += '%s%s\n' % ('  ' * (level + 1), line)
-            elif self.object.type == 'ARMATURE':
-                egg_obj = EGGArmature(None)
-                egg_obj.make_hierarchy_from_list(self.object.data.bones)
-                egg_str += '%s<Dart> { 1 }\n' % ('  ' * (level + 1))
-                for line in egg_obj.get_full_egg_str({}, self.object, -1).splitlines():
-                    egg_str += '%s%s\n' % ('  ' * (level + 1), line)
+            if self.object.__class__ == bpy.types.Bone:
+                egg_str += '%s<Joint> %s {\n' % ('  ' * level, eggSafeName(self.object.yabee_name))
+                #self._yabee_object = EGGJointObjectData(self.object, {}, self.arm_owner)
             else:
-                egg_obj = EGGBaseObjectData(self.object)
-                for line in egg_obj.get_full_egg_str().splitlines():
+                egg_str += '%s<Group> %s {\n' % ('  ' * level, eggSafeName(self.object.yabee_name))
+                egg_str += self.get_tags_egg_str(level + 1)
+                if self.object.type == 'MESH' \
+                   and (self.object.data.shape_keys \
+                        and len(self.object.data.shape_keys.key_blocks) > 1):
+                    egg_str += '%s<Dart> { 1 }\n' % ('  ' * (level + 1))
+                elif self.object.type == 'ARMATURE':
+                    egg_str += '%s<Dart> { 1 }\n' % ('  ' * (level + 1))
+            if self._yabee_object:
+                for line in self._yabee_object.get_full_egg_str().splitlines():
                     egg_str += '%s%s\n' % ('  ' * (level + 1), line)
-            for ch in self.childs:
+            for ch in self.children:
                 egg_str += ch.get_full_egg_str(level + 1)
             egg_str += '%s}\n' % ('  ' * level)
-        else:        
-            for ch in self.childs:
+        else:
+            for ch in self.children:
                 egg_str += ch.get_full_egg_str(level + 1)
         return egg_str
                     
@@ -137,7 +188,7 @@ class EGGArmature(Group):
     
     def get_full_egg_str(self, vrefs, arm_owner, level = 0):
         """ Create and return string representation of the EGG <Joint> 
-        with hieratchy.
+        with hierachy.
         
         @param vrefs: reference of vertices, linked to bones.
         @param arm_owner: Armature object - owner of the bones
@@ -159,11 +210,11 @@ class EGGArmature(Group):
             joint = EGGJointObjectData(self.object, vref, arm_owner)
             for line in joint.get_full_egg_str().splitlines():
                 egg_str += '%s%s\n' % ('  ' * (level + 1), line)
-            for ch in self.childs:
+            for ch in self.children:
                 egg_str += ch.get_full_egg_str(vrefs, arm_owner, level + 1)
             egg_str += '%s}\n' % ('  ' * level)
         else:
-            for ch in self.childs:
+            for ch in self.children:
                 egg_str += ch.get_full_egg_str(vrefs, arm_owner, level + 1)
         return egg_str
 
@@ -267,7 +318,7 @@ class EGGJointObjectData(EGGBaseObjectData):
     
     def __init__(self, obj, vref, arm_owner):
         """ @param vref: reference of vertices, linked to bone.
-        @param arm_owner: Armature object - owner of the bones
+        @param arm_owner: Armature object - owner of the bone
         """
         self.obj_ref = obj
         self.arm_owner = arm_owner
@@ -280,25 +331,28 @@ class EGGJointObjectData(EGGBaseObjectData):
     def get_vref_str(self):
         """ Convert vertex reference to the EGG string and return it.
         """
+        #print('GET VREF')
         vref_str = ''
-        for vpool, data in self.vref.items():
-            weightgroups = {}
-            for idx, weight in data:
-                wstr = '%s' % STRF(weight)
-                if wstr not in list(weightgroups.keys()):
-                    weightgroups[wstr] = []
-                weightgroups[wstr].append(idx)
-            for wgrp, idxs in weightgroups.items():
-                vref_str += '<VertexRef> {\n'
-                vref_str += '  ' + ' '.join(map(str,idxs)) + '\n'
-                vref_str += '  <Scalar> membership { %s }' % wgrp
-                vref_str += '  <Ref> { %s }\n}\n' % vpool
+        for meshes in self.vref:
+            for vpool, data in meshes.items():
+                weightgroups = {}
+                for idx, weight in data:
+                    wstr = '%s' % STRF(weight)
+                    if wstr not in list(weightgroups.keys()):
+                        weightgroups[wstr] = []
+                    weightgroups[wstr].append(idx)
+                for wgrp, idxs in weightgroups.items():
+                    vref_str += '<VertexRef> {\n'
+                    vref_str += '  ' + ' '.join(map(str,idxs)) + '\n'
+                    vref_str += '  <Scalar> membership { %s }' % wgrp
+                    vref_str += '  <Ref> { %s }\n}\n' % vpool
         return vref_str
     
     def get_full_egg_str(self):
         egg_str = ''
         egg_str += self.get_transform_str()
         egg_str += self.get_vref_str()
+        '''
         for obj in [obj for obj in bpy.context.selected_objects \
                     if self.obj_ref.yabee_name == obj.parent_bone and self.arm_owner == obj.parent]:
             gr = Group(None)
@@ -308,7 +362,7 @@ class EGGJointObjectData(EGGBaseObjectData):
             gr.make_hierarchy_from_list(obj_list)
             for line in gr.get_full_egg_str(-1).splitlines():
                 egg_str += line + '\n'
-        
+        '''
         return  egg_str
         
         
@@ -625,6 +679,7 @@ class EGGMeshObjectData(EGGBaseObjectData):
 #-----------------------------------------------------------------------
 #                           ACTOR OBJECT                                
 #-----------------------------------------------------------------------
+
 class EGGActorObjectData(EGGMeshObjectData):
     """ Representation of the EGG animated object data
     """
@@ -632,6 +687,7 @@ class EGGActorObjectData(EGGMeshObjectData):
     def __init__(self, obj):
         EGGMeshObjectData.__init__(self,obj)
         self.joint_vtx_ref = self.pre_convert_joint_vtx_ref()
+        #print(self.joint_vtx_ref)
         
     def pre_convert_joint_vtx_ref(self):
         """ Collect and convert vertices, assigned to the bones
@@ -665,19 +721,36 @@ class EGGActorObjectData(EGGMeshObjectData):
                 j_str += ar.get_full_egg_str(self.joint_vtx_ref, mod.object, -1)
         return j_str
         
-    def get_full_egg_str(self):
-        """ Return string representation of the EGG animated object data.
-        """
-        return self.get_vtx_pool_str() + '\n' \
-                + self.get_polygons_str() + '\n' \
-                + self.get_joints_str() + '\n'
+    #def get_full_egg_str(self):
+    #    """ Return string representation of the EGG animated object data.
+    #    """
+    #    return self.get_vtx_pool_str() + '\n' \
+    #            + self.get_polygons_str() + '\n' \
+    #            + self.get_joints_str() + '\n'
 
 
 class EGGAnimJoint(Group):
     """ Representation of the <Joint> animation data. Has the same 
     hierarchy as the character's skeleton.
     """
-    
+    def make_hierarchy_from_list(self, obj_list):
+        """ Old <Group> function
+        -------------------------------
+        This function make <Group> hierarchy from the list of
+        Blender's objects. Self.object is the top level of the created 
+        hierarchy. Usually in this case self.object == None
+        
+        @param obj_list: tuple or lis of blender's objects.
+        """
+        for obj in obj_list:
+            if ((obj.parent == self.object) or 
+                ((self.object == None) and 
+                 (str(obj.parent) not in map(str,obj_list)) and 
+                 (str(obj) not in [str(ch.object) for ch in self.children]))):
+                gr = self.__class__(obj)
+                self.children.append(gr)
+                gr.make_hierarchy_from_list(obj_list)
+                
     def get_full_egg_str(self, anim_info, framerate, level = 0):
         """ Create and return the string representation of the <Joint>
         animation data, included all joints hierarchy.
@@ -705,11 +778,11 @@ class EGGAnimJoint(Group):
                                                     STRF(bone_data['z'][i]))
             egg_str += '%s    }\n' % ('  ' * level)
             egg_str += '%s  }\n' % ('  ' * level)
-            for ch in self.childs:
+            for ch in self.children:
                 egg_str += ch.get_full_egg_str(anim_info, framerate, level + 1)
             egg_str += '%s}\n' % ('  ' * level)
         else:        
-            for ch in self.childs:
+            for ch in self.children:
                 egg_str += ch.get_full_egg_str(anim_info, framerate, level + 1)
         return egg_str
 
@@ -736,27 +809,30 @@ class AnimCollector():
             arm.pose_position = 'POSE'
         self.obj_anim_ref = {}
         for obj in obj_list:
-            if obj.type == 'MESH':
-                for mod in obj.modifiers:
-                    if mod:
-                        if mod.type == 'ARMATURE':
-                            self.bone_groups[obj.yabee_name] = EGGAnimJoint(None)
-                            self.bone_groups[obj.yabee_name].make_hierarchy_from_list(mod.object.data.bones)
-                            if obj.yabee_name not in list(self.obj_anim_ref.keys()):
-                                self.obj_anim_ref[obj.yabee_name] = {}
-                            self.obj_anim_ref[obj.yabee_name]['<skeleton>'] = \
-                                    self.collect_arm_anims(mod.object)
-                if ((obj.data.shape_keys) and (len(obj.data.shape_keys.key_blocks) > 1)):
+            if obj.__class__ != bpy.types.Bone:
+                if obj.type == 'MESH':
+                    '''
+                    for mod in obj.modifiers:
+                        if mod:
+                            if mod.type == 'ARMATURE':
+                                self.bone_groups[obj.yabee_name] = EGGAnimJoint(None)
+                                self.bone_groups[obj.yabee_name].make_hierarchy_from_list(mod.object.data.bones)
+                                if obj.yabee_name not in list(self.obj_anim_ref.keys()):
+                                    self.obj_anim_ref[obj.yabee_name] = {}
+                                self.obj_anim_ref[obj.yabee_name]['<skeleton>'] = \
+                                        self.collect_arm_anims(mod.object)
+                    '''
+                    if ((obj.data.shape_keys) and (len(obj.data.shape_keys.key_blocks) > 1)):
+                        if obj.yabee_name not in list(self.obj_anim_ref.keys()):
+                            self.obj_anim_ref[obj.yabee_name] = {}
+                        self.obj_anim_ref[obj.yabee_name]['morph'] = self.collect_morph_anims(obj)
+                elif obj.type == 'ARMATURE':
+                    self.bone_groups[obj.yabee_name] = EGGAnimJoint(None)
+                    self.bone_groups[obj.yabee_name].make_hierarchy_from_list(obj.data.bones)
                     if obj.yabee_name not in list(self.obj_anim_ref.keys()):
                         self.obj_anim_ref[obj.yabee_name] = {}
-                    self.obj_anim_ref[obj.yabee_name]['morph'] = self.collect_morph_anims(obj)
-            elif obj.type == 'ARMATURE':
-                self.bone_groups[obj.yabee_name] = EGGAnimJoint(None)
-                self.bone_groups[obj.yabee_name].make_hierarchy_from_list(obj.data.bones)
-                if obj.yabee_name not in list(self.obj_anim_ref.keys()):
-                    self.obj_anim_ref[obj.yabee_name] = {}
-                self.obj_anim_ref[obj.yabee_name]['<skeleton>'] = \
-                        self.collect_arm_anims(obj)
+                    self.obj_anim_ref[obj.yabee_name]['<skeleton>'] = \
+                            self.collect_arm_anims(obj)
     def collect_morph_anims(self, obj):
         """ Collect an animation data for the morph target (shapekeys).
         
@@ -939,11 +1015,15 @@ def get_egg_materials_str():
 #-----------------------------------------------------------------------
 #                   Preparing & auxiliary functions                     
 #-----------------------------------------------------------------------
-def hierarchy_to_list(obj, list):
-    list.append(obj)
+def hierarchy_to_list(obj, list, base_filter = None):
+    if base_filter:
+        if obj._yabee_object.__class__ == base_filter:
+            list.append(obj)
+    else:
+        list.append(obj)
     for ch in obj.children:
         if ch not in list:
-            hierarchy_to_list(ch, list)
+            hierarchy_to_list(ch, list, base_filter)
 
 
 def merge_objects():
@@ -1071,7 +1151,8 @@ def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex,
     # Prepare copy of the scene.
     # Sync objects names with custom property "yabee_name" 
     # to be able to get basic object name in the copy of the scene.
-    selected_obj = [obj.name for obj in bpy.context.selected_objects if obj.type != 'ARMATURE']
+    #selected_obj = [obj.name for obj in bpy.context.selected_objects if obj.type != 'ARMATURE']
+    selected_obj = [obj.name for obj in bpy.context.selected_objects]
     for obj in bpy.data.objects:
         obj.yabee_name = obj.name
     for item in (bpy.data.meshes, bpy.data.materials, bpy.data.textures, 
@@ -1101,19 +1182,42 @@ def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex,
     bpy.ops.scene.new(type = 'FULL_COPY')
     if APPLY_MOD:
         apply_modifiers()
-    parented_to_armatured()
-    if MERGE_ACTOR_MESH:
-        merge_objects()
+    #parented_to_armatured()
+    #if MERGE_ACTOR_MESH:
+    #    merge_objects()
     if bpy.ops.object.mode_set.poll():
         bpy.ops.object.mode_set(mode='OBJECT')
     # Generate UV layers for shadows
     if BAKE_LAYERS['AO'][2] or BAKE_LAYERS['shadow'][2]:
         generate_shadow_uvs()
     gr = Group(None)
-    obj_list = [obj for obj in bpy.context.scene.objects if obj.type != 'ARMATURE' and obj.yabee_name in selected_obj]
+    
+    obj_list = [obj for obj in bpy.context.scene.objects 
+                if obj.yabee_name in selected_obj]
+                #and not (obj.parent and obj.parent.type == 'ARMATURE' 
+                #         and obj.parent_bone)]
+                
+    incl_arm = []
+    for obj in bpy.context.scene.objects:
+        if obj.yabee_name in selected_obj:
+            for mod in obj.modifiers:
+                if mod and mod.type == 'ARMATURE' \
+                   and mod.object not in incl_arm \
+                   and mod.object not in obj_list:
+                    incl_arm.append(mod.object)
+            if obj.parent and obj.parent_type == 'BONE' \
+               and obj.parent not in incl_arm \
+               and obj.parent not in obj_list:
+                incl_arm.append(obj.parent)
+    #incl_arm = list(incl_arm)[:]
+    #print(incl_arm)
+    obj_list += incl_arm
     print('obj list', obj_list)
+        
     gr.make_hierarchy_from_list(obj_list)
-    #gr.print_hierarchy()
+    gr.print_hierarchy()
+    gr.update_joints_data()
+
     fdir, fname = os.path.split(os.path.abspath(FILE_PATH))
     if not os.path.exists(fdir):
         print('PATH %s not exist. Trying to make path' % fdir)

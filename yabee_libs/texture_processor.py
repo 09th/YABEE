@@ -106,7 +106,7 @@ class SimpleTextures():
                                     if tex.use_map_alpha and not tex.use_map_color_diffuse:
                                         continue;
                                     
-                                    t_path = bpy.path.abspath(tex.texture.image.filepath)
+                                    t_path = tex.texture.image.filepath
                                     if self.copy_tex:
                                         t_path = save_image(tex.texture.image, self.file_path, self.tex_path)
                                     #tex_list[tex.texture.name] = {'path': t_path,
