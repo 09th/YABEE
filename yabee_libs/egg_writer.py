@@ -258,8 +258,9 @@ class EGGNurbsCurveObjectData(EGGBaseObjectData):
         for spline in self.obj_ref.data.splines:
             for vtx in spline.points:
                 co = self.obj_ref.matrix_world * vtx.co
+                fixed_co = tuple(map(lambda x: x * co[3], co[:3])) + (co[3],)
                 vertices.append('<Vertex> %i {\n  %s\n}\n' % (idx, 
-                                    ' '.join(map(STRF, co))))
+                                    ' '.join(map(STRF, fixed_co))))
                 idx += 1
         return vertices
                 
