@@ -24,10 +24,10 @@ class SimpleTextures():
         
     def is_slot_valid(self, tex):
         if ((tex) and (not tex.texture.use_nodes)):
-            if tex.texture_coords == 'UV':
+            if tex.texture_coords in ('UV', 'GLOBAL'):
                 if tex.texture.type == 'IMAGE' and tex.texture.image and tex.texture.image.source == 'FILE':
                     return True
-        
+
         return False
         
     def get_valid_slots(self, slots):
@@ -48,7 +48,8 @@ class SimpleTextures():
         """ Collect images from the UV images and Material texture slots 
         tex_list structure:
             image_name: { 'scalars': [(name, val), (name, val), ...],
-                          'path': 'path/to/texture'
+                          'path': 'path/to/texture',
+                          'transform': [(type, val), (type, val), ...]
                         }
         """
         tex_list = {}
@@ -77,22 +78,35 @@ class SimpleTextures():
                                     tex_list[f.image.yabee_name]['scalars'].append(('envtype', 'MODULATE'))
                                     if name:
                                         tex_list[f.image.yabee_name]['scalars'].append(('uv-name', name))
+
                 # General textures
                 for f in obj.data.polygons:
                     if obj.data.uv_textures and f.material_index < len(obj.data.materials):
                         valid_slots = self.get_valid_slots(obj.data.materials[f.material_index].texture_slots)
                         alpha_tex = self.get_alpha_slot(valid_slots)
                         alpha_map_assigned = False
-                        
+
                         for tex in valid_slots:
-                            if tex.uv_layer:
-                                uv_name = tex.uv_layer
-                                if not [uv.name for uv in obj.data.uv_textures].index(uv_name):
-                                    uv_name = ''
-                            else:
-                                uv_name = '' #obj.data.uv_textures[0].name
-                    
-                            
+                            scalars = []
+                            transform = []
+
+                            if tex.texture_coords == 'UV':
+                                if tex.uv_layer:
+                                    uv_name = tex.uv_layer
+                                    if not [uv.name for uv in obj.data.uv_textures].index(uv_name):
+                                        uv_name = ''
+                                else:
+                                    uv_name = '' #obj.data.uv_textures[0].name
+
+                                if uv_name:
+                                    scalars.append(('uv-name', uv_name))
+
+                            elif tex.texture_coords == 'GLOBAL':
+                                scalars.append(('tex-gen', 'WORLD_POSITION'))
+                                # Scale to Panda's coordinate system
+                                transform.append(('Translate', (1, 1, 1)))
+                                transform.append(('Scale', (0.5, 0.5, 0.5)))
+
                             #if not tex.texture.name in list(tex_list.keys()):
                             if not tex.texture.yabee_name in list(tex_list.keys()):
                                 #try:
@@ -104,47 +118,79 @@ class SimpleTextures():
                                     if tex.use_map_specular:
                                         envtype = 'GLOSS'
                                     if tex.use_map_alpha and not tex.use_map_color_diffuse:
-                                        continue;
-                                    
-                                    t_path = bpy.path.abspath(tex.texture.image.filepath)
+                                        continue
+                                    scalars.append(('envtype', envtype))
+
+                                    t_path = tex.texture.image.filepath
                                     if self.copy_tex:
                                         t_path = save_image(tex.texture.image, self.file_path, self.tex_path)
+
                                     #tex_list[tex.texture.name] = {'path': t_path,
-                                    #                              'scalars': [] }
-                                    #tex_list[tex.texture.name]['scalars'].append(('envtype', envtype))
+                                    #                              'scalars': scalars, 'transform': transform }
                                     tex_list[tex.texture.yabee_name] = {'path': t_path,
-                                                                  'scalars': [] }
-                                    tex_list[tex.texture.yabee_name]['scalars'].append(('envtype', envtype))
-                                    
+                                                                        'scalars': scalars, 'transform': transform }
+
                                     if(tex.texture.use_mipmap):
-                                        #tex_list[tex.texture.name]['scalars'].append(('minfilter', 'LINEAR_MIPMAP_LINEAR'))
-                                        #tex_list[tex.texture.name]['scalars'].append(('magfilter', 'LINEAR_MIPMAP_LINEAR'))
-                                        tex_list[tex.texture.yabee_name]['scalars'].append(('minfilter', 'LINEAR_MIPMAP_LINEAR'))
-                                        tex_list[tex.texture.yabee_name]['scalars'].append(('magfilter', 'LINEAR_MIPMAP_LINEAR'))
-                                    
-                                    wrap_mode = 'REPEAT'
-                                    if(tex.texture.extension == 'CLIP'):
-                                        wrap_mode = 'CLAMP'
-                                    
-                                    #tex_list[tex.texture.name]['scalars'].append(('wrap', wrap_mode))     
-                                    tex_list[tex.texture.yabee_name]['scalars'].append(('wrap', wrap_mode))     
+                                        scalars.append(('minfilter', 'LINEAR_MIPMAP_LINEAR'))
+                                        scalars.append(('magfilter', 'LINEAR_MIPMAP_LINEAR'))
+
+                                    # Process wrap modes.
+                                    if(tex.texture.extension == 'EXTEND'):
+                                        scalars.append(('wrap', 'CLAMP'))
+
+                                    elif(tex.texture.extension in ('CLIP', 'CLIP_CUBE')):
+                                        scalars.append(('wrap', 'BORDER_COLOR'))
+                                        scalars.append(('borderr', '1'))
+                                        scalars.append(('borderg', '1'))
+                                        scalars.append(('borderb', '1'))
+                                        scalars.append(('bordera', '1'))
+
+                                    elif(tex.texture.extension in ('REPEAT', 'CHECKER')):
+                                        scalars.append(('wrap', 'REPEAT'))
+
+                                    # Process coordinate mapping using a matrix.
+                                    mappings = (tex.mapping_x, tex.mapping_y, tex.mapping_z)
+
+                                    if mappings != ('X', 'Y', 'Z'):
+                                        matrix = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
+
+                                        for col, mapping in enumerate(mappings):
+                                            if mapping == 'Z' and tex.texture_coords == 'UV':
+                                                # Z is not present when using UV coordinates.
+                                                mapping = 'NONE'
+
+                                            if mapping == 'NONE':
+                                                # It seems that Blender sets Z to 0.5 when it is not present.
+                                                matrix[4 * 3 + col] = 0.5
+                                            else:
+                                                row = ord(mapping) - ord('X')
+                                                matrix[4 * row + col] = 1
+
+                                        transform.append(('Matrix4', matrix))
+
+                                    # Process texture transformations.
+                                    if(tuple(tex.scale) != (1.0, 1.0, 1.0)):
+                                        # Blender scales from the centre, so shift it before scaling and then shift it back.
+                                        transform.append(('Translate', (-0.5, -0.5, -0.5)))
+                                        transform.append(('Scale', tex.scale))
+                                        transform.append(('Translate', (0.5, 0.5, 0.5)))
+
+                                    if(tuple(tex.offset) != (0.0, 0.0, 0.0)):
+                                        transform.append(('Translate', tex.offset))
                                     
                                     if(envtype == 'MODULATE'):
                                         if(alpha_tex and not alpha_map_assigned):
                                             alpha_map_assigned = True
-                                            alpha_path = bpy.path.abspath(alpha_tex.texture.image.filepath)
+                                            alpha_path = alpha_tex.texture.image.filepath
                                             if self.copy_tex:
                                                 alpha_path = save_image(alpha_tex.texture.image, self.file_path, self.tex_path)
-                                            #tex_list[tex.texture.name]['scalars'].append(('alpha-file', '\"%s\"' % alpha_path))
-                                            tex_list[tex.texture.yabee_name]['scalars'].append(('alpha-file', '\"%s\"' % alpha_path))
-                                            tex_list[tex.texture.yabee_name]['scalars'].append(('alpha-file-channel', '4'))
+                                            scalars.append(('alpha-file', '\"%s\"' % alpha_path))
+                                            scalars.append(('alpha-file-channel', '4'))
                                             
                                             if(obj.data.materials[f.material_index].game_settings.alpha_blend == 'CLIP'):
-                                                #tex_list[tex.texture.name]['scalars'].append(('alpha', 'BINARY'))
-                                                tex_list[tex.texture.yabee_name]['scalars'].append(('alpha', 'BINARY'))
-                                    if uv_name:
-                                        #tex_list[tex.texture.name]['scalars'].append(('uv-name', uv_name))
-                                        tex_list[tex.texture.yabee_name]['scalars'].append(('uv-name', uv_name))
+                                                scalars.append(('alpha', 'BINARY'))
+                                            elif(obj.data.materials[f.material_index].game_settings.alpha_blend == 'ADD'):
+                                                scalars.append(('blend', 'add'))
                                 #except:
                                 #    print('ERROR: can\'t get texture image on %s.' % tex.texture.name)
         return tex_list
@@ -289,7 +335,8 @@ class TextureBaker():
                         #tex_list[key] = (uv_name, img_path, envtype)
                         # Texture information dict
                         tex_list[key] = {'path': img_path,
-                                         'scalars': [] }
+                                         'scalars': [],
+                                         'transform': [] }
                         tex_list[key]['scalars'].append(('envtype', envtype))
                         if uv_name:
                             tex_list[key]['scalars'].append(('uv-name', uv_name))

@@ -75,9 +75,14 @@ class Group:
         egg_str = ''
         if self.object:
             for prop in self.object.game.properties:
-                if prop.name in ('Collide', 'ObjectType'):
+                normalized = prop.name.lower().replace('_', '-')
+
+                if normalized in ('collide', 'objecttype'):
                     vals = ('  ' * level, prop.name, prop.value)
                     egg_str += '%s<%s> { %s }\n' % vals
+                elif normalized in ('collide-mask', 'from-collide-mask', 'into-collide-mask', 'bin', 'draw-order'):
+                    vals = ('  ' * level, prop.name, prop.value)
+                    egg_str += '%s<Scalar> %s { %s }\n' % vals
                 else:
                     vals = ('  ' * level, eggSafeName(prop.name), eggSafeName(prop.value))
                     egg_str += '%s<Tag> %s { %s }\n' % vals
@@ -509,7 +514,7 @@ class EGGMeshObjectData(EGGBaseObjectData):
                 mat = self.obj_ref.data.materials[face.material_index]
                 tex_idx = 0
                 for tex in [tex for tex in mat.texture_slots if tex]:
-                    if ((tex.texture_coords == 'UV') 
+                    if (tex.texture_coords in ('UV', 'GLOBAL')
                          and (not tex.texture.use_nodes)
                          and (mat.use_textures[tex_idx])):
                             if tex.texture.type == 'IMAGE' and tex.texture.image and tex.texture.image.source == 'FILE':
@@ -932,6 +937,13 @@ def get_egg_materials_str():
         mat_str += '  "' + convertFileNameToPanda(params['path']) + '"\n'
         for scalar in params['scalars']:
             mat_str += ('  <Scalar> %s { %s }\n' % scalar)
+
+        if 'transform' in params and len(params['transform']) > 0:
+            mat_str += '  <Transform> {\n'
+            for ttype, transform in params['transform']:
+                transform = ' '.join(map(str, transform))
+                mat_str += '    <%s> { %s }\n' % (ttype, transform)
+            mat_str += '  }\n'
         mat_str += '}\n\n'
     return mat_str
     
