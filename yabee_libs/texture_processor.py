@@ -60,7 +60,7 @@ class SimpleTextures():
                     for num, uv in enumerate(obj.data.uv_textures):
                         for f in uv.data:
                             #if f.use_image:
-                            if f.image.source == 'FILE':
+                            if f.image and f.image.source == 'FILE':
                                 #if not f.image.name in tex_list:
                                 if not f.image.yabee_name in tex_list:
                                     name = uv.name
