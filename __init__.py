@@ -1,6 +1,6 @@
 """ Part of the YABEE
-    rev 12.3
 """
+
 bl_info = {
     "name": "Panda3d EGG format",
     "author": "Andrey (Ninth) Arbuzov",

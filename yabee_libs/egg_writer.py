@@ -1,18 +1,18 @@
-""" Part of the YABEE rev 12.3
+""" Part of the YABEE
 """
 
 import bpy, os, sys, shutil
 from mathutils import *
 from math import pi
-#import io_scene_egg.yabee_libs.tbn_generator
-import io_scene_egg.yabee_libs
-from io_scene_egg.yabee_libs.texture_processor import SimpleTextures, TextureBaker
-from io_scene_egg.yabee_libs.utils import *
+#import io_scene_egg.yabee_libs
+#from . import yabee_libs
+from .texture_processor import SimpleTextures, TextureBaker
+from .utils import *
 import subprocess
 import imp
-imp.reload(io_scene_egg.yabee_libs.texture_processor)
-#imp.reload(io_scene_egg.yabee_libs.tbn_generator)
-imp.reload(io_scene_egg.yabee_libs.utils)
+lib_name = '.'.join(__name__.split('.')[:-1])
+imp.reload(sys.modules[lib_name + '.texture_processor'])
+imp.reload(sys.modules[lib_name + '.utils'])
 
 
 FILE_PATH = None
@@ -385,9 +385,6 @@ class EGGMeshObjectData(EGGBaseObjectData):
         self.poly_vtx_ref = self.pre_convert_poly_vtx_ref()
         self.colors_vtx_ref = self.pre_convert_vtx_color()
         self.uvs_list = self.pre_convert_uvs()
-        #if CALC_TBS == 'INTERNAL':
-        #    self.tbs = io_scene_egg.yabee_libs.tbn_generator.TBNGenerator(obj).generate()
-        #else:
         self.tbs = None
             
 
@@ -1140,9 +1137,8 @@ def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex,
            COPY_TEX_FILES, TEX_PATH, SEPARATE_ANIM_FILE, ANIM_ONLY, \
            STRF, CALC_TBS, TEXTURE_PROCESSOR, BAKE_LAYERS, \
            MERGE_ACTOR_MESH, APPLY_MOD, PVIEW
-    imp.reload(io_scene_egg.yabee_libs.texture_processor)
-    #imp.reload(io_scene_egg.yabee_libs.tbn_generator)
-    imp.reload(io_scene_egg.yabee_libs.utils)
+    imp.reload(sys.modules[lib_name + '.texture_processor'])
+    imp.reload(sys.modules[lib_name + '.utils'])
     # === prepare to write ===
     FILE_PATH = fname
     ANIMATIONS = anims

@@ -1,9 +1,9 @@
-""" 
-    Part of the YABEE rev 12.1
+""" Part of the YABEE
 """
+
 import bpy
 if __name__ != '__main__':
-    from io_scene_egg.yabee_libs.utils import convertFileNameToPanda, save_image
+    from .utils import convertFileNameToPanda, save_image
 
 BAKE_TYPES = {'diffuse': ('TEXTURE', 'MODULATE'),
               'normal': ('NORMALS', 'NORMAL'),
