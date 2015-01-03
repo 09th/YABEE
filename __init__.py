@@ -349,7 +349,7 @@ class ExportPanda3DEGG(bpy.types.Operator, ExportHelper):
         import imp
         imp.reload(egg_writer)
         sett = context.scene.yabee_settings
-        egg_writer.write_out(self.filepath, 
+        if not egg_writer.write_out(self.filepath, 
                             sett.opt_anim_list.get_anim_dict(),
                             sett.opt_export_uv_as_texture, 
                             sett.opt_separate_anim_files, 
@@ -362,7 +362,9 @@ class ExportPanda3DEGG(bpy.types.Operator, ExportHelper):
                             sett.get_bake_dict(),
                             sett.opt_merge_actor,
                             sett.opt_apply_modifiers,
-                            sett.opt_pview)
+                            sett.opt_pview):
+            self.report({'ERROR'}, 'Unexpected error during export! See to console for more info.')
+            return {'CANCELLED'}
         return {'FINISHED'}
         
     def invoke(self, context, evt):

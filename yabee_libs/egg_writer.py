@@ -10,6 +10,8 @@ from .texture_processor import SimpleTextures, TextureBaker
 from .utils import *
 import subprocess
 import imp
+from traceback import format_tb
+
 lib_name = '.'.join(__name__.split('.')[:-1])
 imp.reload(sys.modules[lib_name + '.texture_processor'])
 imp.reload(sys.modules[lib_name + '.utils'])
@@ -1152,6 +1154,7 @@ def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex,
            MERGE_ACTOR_MESH, APPLY_MOD, PVIEW
     imp.reload(sys.modules[lib_name + '.texture_processor'])
     imp.reload(sys.modules[lib_name + '.utils'])
+    result = True
     # === prepare to write ===
     FILE_PATH = fname
     ANIMATIONS = anims
@@ -1202,93 +1205,97 @@ def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex,
               bpy.data.worlds, bpy.data.grease_pencil):
         old_data[d] = d[:]
     bpy.ops.scene.new(type = 'FULL_COPY')
-    if APPLY_MOD:
-        apply_modifiers()
-    #parented_to_armatured()
-    #if MERGE_ACTOR_MESH:
-    #    merge_objects()
-    if bpy.ops.object.mode_set.poll():
-        bpy.ops.object.mode_set(mode='OBJECT')
-    # Generate UV layers for shadows
-    if BAKE_LAYERS['AO'][2] or BAKE_LAYERS['shadow'][2]:
-        generate_shadow_uvs()
-    gr = Group(None)
-    
-    obj_list = [obj for obj in bpy.context.scene.objects 
-                if obj.yabee_name in selected_obj]
-                #and not (obj.parent and obj.parent.type == 'ARMATURE' 
-                #         and obj.parent_bone)]
-                
-    incl_arm = []
-    for obj in bpy.context.scene.objects:
-        if obj.yabee_name in selected_obj:
-            for mod in obj.modifiers:
-                if mod and mod.type == 'ARMATURE' \
-                   and mod.object not in incl_arm \
-                   and mod.object not in obj_list:
-                    incl_arm.append(mod.object)
-            if obj.parent and obj.parent_type == 'BONE' \
-               and obj.parent not in incl_arm \
-               and obj.parent not in obj_list:
-                incl_arm.append(obj.parent)
-    #incl_arm = list(incl_arm)[:]
-    #print(incl_arm)
-    obj_list += incl_arm
-    print('obj list', obj_list)
+    try:
+        if APPLY_MOD:
+            apply_modifiers()
+        #parented_to_armatured()
+        #if MERGE_ACTOR_MESH:
+        #    merge_objects()
+        if bpy.ops.object.mode_set.poll():
+            bpy.ops.object.mode_set(mode='OBJECT')
+        # Generate UV layers for shadows
+        if BAKE_LAYERS['AO'][2] or BAKE_LAYERS['shadow'][2]:
+            generate_shadow_uvs()
+        gr = Group(None)
         
-    gr.make_hierarchy_from_list(obj_list)
-    gr.print_hierarchy()
-    gr.update_joints_data()
+        obj_list = [obj for obj in bpy.context.scene.objects 
+                    if obj.yabee_name in selected_obj]
+                    #and not (obj.parent and obj.parent.type == 'ARMATURE' 
+                    #         and obj.parent_bone)]
+                    
+        incl_arm = []
+        for obj in bpy.context.scene.objects:
+            if obj.yabee_name in selected_obj:
+                for mod in obj.modifiers:
+                    if mod and mod.type == 'ARMATURE' \
+                       and mod.object not in incl_arm \
+                       and mod.object not in obj_list:
+                        incl_arm.append(mod.object)
+                if obj.parent and obj.parent_type == 'BONE' \
+                   and obj.parent not in incl_arm \
+                   and obj.parent not in obj_list:
+                    incl_arm.append(obj.parent)
+        #incl_arm = list(incl_arm)[:]
+        #print(incl_arm)
+        obj_list += incl_arm
+        print('obj list', obj_list)
+            
+        gr.make_hierarchy_from_list(obj_list)
+        gr.print_hierarchy()
+        gr.update_joints_data()
 
-    fdir, fname = os.path.split(os.path.abspath(FILE_PATH))
-    if not os.path.exists(fdir):
-        print('PATH %s not exist. Trying to make path' % fdir)
-        os.makedirs(fdir)
-    # === write egg data ===
-    print('WRITE main EGG to %s' % os.path.abspath(FILE_PATH))
-    if ((not ANIM_ONLY) or (not SEPARATE_ANIM_FILE)):
-        file = open(FILE_PATH, 'w')
-    if not ANIM_ONLY:
-        file.write('<CoordinateSystem> { Z-up } \n')
-        file.write(get_egg_materials_str())
-        file.write(gr.get_full_egg_str())
-    fpa = []
-    for a_name, frames in ANIMATIONS.items():
-        ac = AnimCollector(obj_list, 
-                            frames[0], 
-                            frames[1], 
-                            frames[2], 
-                            a_name)
-        if not SEPARATE_ANIM_FILE:
-            file.write(ac.get_full_egg_str())
-        else:
-            a_path = FILE_PATH
-            if a_path[-4:].upper() == '.EGG':
-                a_path = a_path[:-4] + '-' + a_name + a_path[-4:]
+        fdir, fname = os.path.split(os.path.abspath(FILE_PATH))
+        if not os.path.exists(fdir):
+            print('PATH %s not exist. Trying to make path' % fdir)
+            os.makedirs(fdir)
+        # === write egg data ===
+        print('WRITE main EGG to %s' % os.path.abspath(FILE_PATH))
+        if ((not ANIM_ONLY) or (not SEPARATE_ANIM_FILE)):
+            file = open(FILE_PATH, 'w')
+        if not ANIM_ONLY:
+            file.write('<CoordinateSystem> { Z-up } \n')
+            file.write(get_egg_materials_str())
+            file.write(gr.get_full_egg_str())
+        fpa = []
+        for a_name, frames in ANIMATIONS.items():
+            ac = AnimCollector(obj_list, 
+                                frames[0], 
+                                frames[1], 
+                                frames[2], 
+                                a_name)
+            if not SEPARATE_ANIM_FILE:
+                file.write(ac.get_full_egg_str())
             else:
-                a_path = a_path + '-' + a_name + '.egg'
-            a_egg_str = ac.get_full_egg_str()
-            if len(a_egg_str) > 0:
-                a_file = open(a_path, 'w')
-                a_file.write('<CoordinateSystem> { Z-up } \n')
-                a_file.write(ac.get_full_egg_str())
-                a_file.close()
-                fpa.append(a_path)
-    if ((not ANIM_ONLY) or (not SEPARATE_ANIM_FILE)):
-        file.close()
-    if CALC_TBS == 'PANDA':
-        try:
-            fp = os.path.abspath(FILE_PATH)
-            for line in os.popen('egg-trans -tbnall -o "%s" "%s"' % (fp, fp)).readlines():
-                print(line)
-        except:
-            print('ERROR: Can\'t calculate TBS through panda\'s egg-trans')
-    if PVIEW:
-        try:
-            fp = os.path.abspath(FILE_PATH)
-            subprocess.Popen(['pview', fp] + fpa)
-        except:
-            print('ERROR: Can\'t execute pview')
+                a_path = FILE_PATH
+                if a_path[-4:].upper() == '.EGG':
+                    a_path = a_path[:-4] + '-' + a_name + a_path[-4:]
+                else:
+                    a_path = a_path + '-' + a_name + '.egg'
+                a_egg_str = ac.get_full_egg_str()
+                if len(a_egg_str) > 0:
+                    a_file = open(a_path, 'w')
+                    a_file.write('<CoordinateSystem> { Z-up } \n')
+                    a_file.write(ac.get_full_egg_str())
+                    a_file.close()
+                    fpa.append(a_path)
+        if ((not ANIM_ONLY) or (not SEPARATE_ANIM_FILE)):
+            file.close()
+        if CALC_TBS == 'PANDA':
+            try:
+                fp = os.path.abspath(FILE_PATH)
+                for line in os.popen('egg-trans -tbnall -o "%s" "%s"' % (fp, fp)).readlines():
+                    print(line)
+            except:
+                print('ERROR: Can\'t calculate TBS through panda\'s egg-trans')
+        if PVIEW:
+            try:
+                fp = os.path.abspath(FILE_PATH)
+                subprocess.Popen(['pview', fp] + fpa)
+            except:
+                print('ERROR: Can\'t execute pview')
+    except Exception as exc:
+        result = False
+        print(format_tb(exc.__traceback__)[0])
     # Clearing the scene. 
     # (!) Possible Incomplete. 
     # Whenever we are deleted our copy of the scene, 
@@ -1304,7 +1311,7 @@ def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex,
                     d.remove(obj)
                 except:
                     print ('WARNING: Can\'t delete', obj, 'from', d)
-
+    return result
 
 def write_out_test(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex, 
               t_path, fp_accuracy, tbs, tex_processor, b_layers):
