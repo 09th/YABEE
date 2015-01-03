@@ -381,8 +381,8 @@ class EGGMeshObjectData(EGGBaseObjectData):
 
     def __init__(self, obj):
         EGGBaseObjectData.__init__(self, obj)
-        self.smooth_vtx_list = self.get_smooth_vtx_list()
         self.poly_vtx_ref = self.pre_convert_poly_vtx_ref()
+        self.smooth_vtx_list = self.get_smooth_vtx_list()
         self.colors_vtx_ref = self.pre_convert_vtx_color()
         self.uvs_list = self.pre_convert_uvs()
         self.tbs = None
@@ -398,11 +398,23 @@ class EGGMeshObjectData(EGGBaseObjectData):
         shading used normals of vertices. For solid - polygons.
         """
         vtx_list = []
-        for f in self.obj_ref.data.polygons:
+        for i,f in enumerate(self.obj_ref.data.polygons):
             if f.use_smooth:
-                for v in f.vertices:                
+                for v in self.poly_vtx_ref[i]:
                     vtx_list.append(v)
-        return set(vtx_list)
+        vtx_list = set(vtx_list)
+
+        if self.obj_ref.data.use_auto_smooth:
+            sharp_edges = [e.key for e in self.obj_ref.data.edges if e.use_edge_sharp]
+            for i,f in enumerate(self.obj_ref.data.polygons):
+                for e in f.edge_keys:
+                    if e in sharp_edges:
+                        for ev in e:
+                            ei = list(f.vertices).index(ev)
+                            iv = self.poly_vtx_ref[i][ei]
+                            if iv in vtx_list:
+                                vtx_list.remove(iv)
+        return vtx_list
         
     def pre_convert_uvs(self):
         """ Blender uses shared vertices, but for the correct working 
@@ -480,16 +492,17 @@ class EGGMeshObjectData(EGGBaseObjectData):
                                       (key.name, STRF(co[0]), STRF(co[1]), STRF(co[2])))
         return attributes
         
-    def collect_vtx_normal(self, vidx, attributes):
+    def collect_vtx_normal(self, v, idx, attributes):
         """ Add <Normal> to the vertex attributes list.
         
-        @param vidx: Blender's internal vertex index.
+        @param v: Blender vertex index.
+        @param idx: the EGG (converted) vertex index.
         @param attributes: list of vertex attributes
         
         @return: list of vertex attributes.
         """
-        if vidx in self.smooth_vtx_list:
-            no = self.obj_ref.matrix_world.to_euler().to_matrix() * self.obj_ref.data.vertices[vidx].normal
+        if idx in self.smooth_vtx_list:
+            no = self.obj_ref.matrix_world.to_euler().to_matrix() * self.obj_ref.data.vertices[v].normal
             attributes.append('<Normal> { %s %s %s }' % (STRF(no[0]), STRF(no[1]), STRF(no[2])))
         return attributes
         
@@ -536,7 +549,7 @@ class EGGMeshObjectData(EGGBaseObjectData):
                 attributes = []
                 self.collect_vtx_xyz(v, attributes)
                 self.collect_vtx_dxyz(v, attributes)
-                self.collect_vtx_normal(v, attributes)
+                self.collect_vtx_normal(v, idx, attributes)
                 self.collect_vtx_rgba(idx, attributes)
                 self.collect_vtx_uv(v, idx, attributes)
                 str_attr = '\n'.join(attributes)
