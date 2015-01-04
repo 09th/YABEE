@@ -31,6 +31,8 @@ MERGE_ACTOR_MESH = None
 APPLY_MOD = None
 PVIEW = True
 STRF = lambda x: '%.6f' % x
+USED_MATERIALS = None
+USED_TEXTURES = None
 
 class Group:
     """
@@ -575,20 +577,25 @@ class EGGMeshObjectData(EGGBaseObjectData):
         
         @return: list of polygon's attributes.
         """
+        global USED_TEXTURES, TEXTURE_PROCESSOR
         if TEXTURE_PROCESSOR == 'SIMPLE':
             if EXPORT_UV_IMAGE_AS_TEXTURE:
                 for uv_tex in self.obj_ref.data.uv_textures:
-                    if uv_tex.data[face.index].image.source == 'FILE':
-                        attributes.append('<TRef> { %s }' % eggSafeName(uv_tex.data[face.index].image.yabee_name))
+                    #if uv_tex.data[face.index].image.source == 'FILE':
+                    tex_name = eggSafeName(uv_tex.data[face.index].image.yabee_name)
+                    if tex_name in USED_TEXTURES:
+                        attributes.append('<TRef> { %s }' % tex_name)
             if face.material_index < len(self.obj_ref.data.materials):
                 mat = self.obj_ref.data.materials[face.material_index]
                 tex_idx = 0
                 for tex in [tex for tex in mat.texture_slots if tex]:
-                    if (tex.texture_coords in ('UV', 'GLOBAL')
-                         and (not tex.texture.use_nodes)
-                         and (mat.use_textures[tex_idx])):
-                            if tex.texture.type == 'IMAGE' and tex.texture.image and tex.texture.image.source == 'FILE':
-                                attributes.append('<TRef> { %s }' % eggSafeName(tex.texture.yabee_name))
+                    tex_name = eggSafeName(tex.texture.yabee_name)
+                    if tex_name in USED_TEXTURES:
+                    #if (tex.texture_coords in ('UV', 'GLOBAL')
+                    #     and (not tex.texture.use_nodes)
+                    #     and (mat.use_textures[tex_idx])):                    
+                    #        if tex.texture.type == 'IMAGE' and tex.texture.image and tex.texture.image.source == 'FILE':
+                                attributes.append('<TRef> { %s }' % tex_name)
                     tex_idx += 1
         #elif TEXTURE_PROCESSOR == 'BAKE':
         if self.obj_ref.data.uv_textures:
@@ -994,7 +1001,8 @@ def get_egg_materials_str():
     if not bpy.context.selected_objects:
         return ''
     mat_str = ''
-    for m_idx in get_used_materials():
+    used_materials = get_used_materials()
+    for m_idx in used_materials:
         mat = bpy.data.materials[m_idx]
         mat_str += '<Material> %s {\n' % eggSafeName(mat.yabee_name)
         if TEXTURE_PROCESSOR == 'SIMPLE':
@@ -1045,7 +1053,7 @@ def get_egg_materials_str():
                 mat_str += '    <%s> { %s }\n' % (ttype, transform)
             mat_str += '  }\n'
         mat_str += '}\n\n'
-    return mat_str
+    return mat_str, used_materials, used_textures
     
     
 #-----------------------------------------------------------------------
@@ -1162,7 +1170,7 @@ def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex,
     global FILE_PATH, ANIMATIONS, EXPORT_UV_IMAGE_AS_TEXTURE, \
            COPY_TEX_FILES, TEX_PATH, SEPARATE_ANIM_FILE, ANIM_ONLY, \
            STRF, CALC_TBS, TEXTURE_PROCESSOR, BAKE_LAYERS, \
-           MERGE_ACTOR_MESH, APPLY_MOD, PVIEW
+           MERGE_ACTOR_MESH, APPLY_MOD, PVIEW, USED_MATERIALS, USED_TEXTURES
     imp.reload(sys.modules[lib_name + '.texture_processor'])
     imp.reload(sys.modules[lib_name + '.utils'])
     result = True
@@ -1265,7 +1273,8 @@ def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex,
             file = open(FILE_PATH, 'w')
         if not ANIM_ONLY:
             file.write('<CoordinateSystem> { Z-up } \n')
-            file.write(get_egg_materials_str())
+            materials_str, USED_MATERIALS, USED_TEXTURES = get_egg_materials_str()
+            file.write(materials_str)
             file.write(gr.get_full_egg_str())
         fpa = []
         for a_name, frames in ANIMATIONS.items():
