@@ -152,8 +152,10 @@ class Group:
                     egg_str += '%s<Tag> %s { %s }\n' % vals
         return egg_str
                 
-            
-    def get_full_egg_str(self,level = 0):
+    def get_full_egg_str(self, level = 0):
+        return ''.join(self.get_full_egg_str_arr(level))
+    
+    def get_full_egg_str_arr(self,level = 0):
         """ Create and return representation of the EGG  <Group>  
         with hierarchy, started from self.object. It's start point to
         generating EGG structure.
@@ -162,29 +164,29 @@ class Group:
         
         @return: full EGG string of group.
         """
-        egg_str = ''
+        egg_str = []
         if self.object:
             if self.object.__class__ == bpy.types.Bone:
-                egg_str += '%s<Joint> %s {\n' % ('  ' * level, eggSafeName(self.object.yabee_name))
+                egg_str.append( '%s<Joint> %s {\n' % ('  ' * level, eggSafeName(self.object.yabee_name)) )
                 #self._yabee_object = EGGJointObjectData(self.object, {}, self.arm_owner)
             else:
-                egg_str += '%s<Group> %s {\n' % ('  ' * level, eggSafeName(self.object.yabee_name))
-                egg_str += self.get_tags_egg_str(level + 1)
+                egg_str.append( '%s<Group> %s {\n' % ('  ' * level, eggSafeName(self.object.yabee_name)) )
+                egg_str.append( self.get_tags_egg_str(level + 1) )
                 if self.object.type == 'MESH' \
                    and (self.object.data.shape_keys \
                         and len(self.object.data.shape_keys.key_blocks) > 1):
-                    egg_str += '%s<Dart> { 1 }\n' % ('  ' * (level + 1))
+                    egg_str.append( '%s<Dart> { 1 }\n' % ('  ' * (level + 1)) )
                 elif self.object.type == 'ARMATURE':
-                    egg_str += '%s<Dart> { 1 }\n' % ('  ' * (level + 1))
+                    egg_str.append( '%s<Dart> { 1 }\n' % ('  ' * (level + 1)) )
             if self._yabee_object:
                 for line in self._yabee_object.get_full_egg_str().splitlines():
-                    egg_str += '%s%s\n' % ('  ' * (level + 1), line)
+                    egg_str.append( '%s%s\n' % ('  ' * (level + 1), line) )
             for ch in self.children:
-                egg_str += ch.get_full_egg_str(level + 1)
-            egg_str += '%s}\n' % ('  ' * level)
+                egg_str.append( ch.get_full_egg_str(level + 1) )
+            egg_str.append( '%s}\n' % ('  ' * level) )
         else:
             for ch in self.children:
-                egg_str += ch.get_full_egg_str(level + 1)
+                egg_str.append( ch.get_full_egg_str(level + 1) )
         return egg_str
                     
 
@@ -243,14 +245,15 @@ class EGGBaseObjectData:
     def get_transform_str(self):
         """ Return the EGG string representation of object transforms.
         """
-        tr_str = '<Transform> {\n  <Matrix4> {\n'        
+        tr_str = ['<Transform> {\n  <Matrix4> {\n',]
         for y in self.transform_matrix.col:
-            tr_str += '    '
+            tr_str.append( '    ' )
             for x in y[:]:
-                tr_str += STRF( x ) + ' '
-            tr_str += '\n'
-        tr_str += '  }\n}\n'        
-        return tr_str
+                #tr_str += [STRF( x ), ' ']
+                tr_str += [str( x ), ' ']
+            tr_str.append('\n')
+        tr_str.append( '  }\n}\n' )
+        return ''.join(tr_str)
         
     def get_full_egg_str(self):
         return self.get_transform_str() + '\n'
@@ -283,6 +286,7 @@ class EGGNurbsCurveObjectData(EGGBaseObjectData):
                 for line in vtx_str.splitlines():
                     vtx_pool += '  ' + line + '\n'
             vtx_pool += '}\n'
+            #vtx_pool = '<VertexPool> %s {\n %s}\n' % (eggSafeName(self.obj_ref.yabee_name), '\n  '.join(vertices))
         return vtx_pool
         
     def get_curves_str(self):
@@ -345,7 +349,8 @@ class EGGJointObjectData(EGGBaseObjectData):
             for vpool, data in meshes.items():
                 weightgroups = {}
                 for idx, weight in data:
-                    wstr = '%s' % STRF(weight)
+                    #wstr = '%s' % STRF(weight)
+                    wstr = '%f' % weight
                     if wstr not in list(weightgroups.keys()):
                         weightgroups[wstr] = []
                     weightgroups[wstr].append(idx)
@@ -471,8 +476,7 @@ class EGGMeshObjectData(EGGBaseObjectData):
         @return: list of vertex attributes.
         """
         co = self.obj_ref.matrix_world * self.obj_ref.data.vertices[vidx].co
-        co = map(str, co)
-        attributes.append('\n' + ' '.join(co))
+        attributes.append('%f %f %f' % co[:])
         return attributes
         
     def collect_vtx_dxyz(self, vidx, attributes):
@@ -490,8 +494,8 @@ class EGGMeshObjectData(EGGBaseObjectData):
                 co = key.data[vidx].co * self.obj_ref.matrix_world - \
                      vtx.co * self.obj_ref.matrix_world
                 if co.length > 0.000001:
-                    attributes.append('<Dxyz> "%s" { %s %s %s }\n' % \
-                                      (key.name, STRF(co[0]), STRF(co[1]), STRF(co[2])))
+                    attributes.append('<Dxyz> "%s" { %f %f %f }\n' % \
+                                      (key.name, co[0], co[1], co[2]))
         return attributes
         
     def collect_vtx_normal(self, v, idx, attributes):
@@ -505,13 +509,13 @@ class EGGMeshObjectData(EGGBaseObjectData):
         """
         if idx in self.smooth_vtx_list:
             no = self.obj_ref.matrix_world.to_euler().to_matrix() * self.obj_ref.data.vertices[v].normal
-            attributes.append('<Normal> { %s %s %s }' % (STRF(no[0]), STRF(no[1]), STRF(no[2])))
+            attributes.append('<Normal> { %f %f %f }' % no[:])
         return attributes
         
     def collect_vtx_rgba(self, vidx, attributes):
         if self.colors_vtx_ref:
             col = self.colors_vtx_ref[vidx]
-            attributes.append('<RGBA> { %s %s %s 1.0 }' % (STRF(col[0]), STRF(col[1]), STRF(col[2])))
+            attributes.append('<RGBA> { %f %f %f 1.0 }' % col[:])
         return attributes
         
     def collect_vtx_uv(self, vidx, ividx, attributes):
@@ -522,26 +526,23 @@ class EGGMeshObjectData(EGGBaseObjectData):
         
         @return: list of vertex attributes.
         """
-        for i in range(len(self.uvs_list)):
-            name, data = self.uvs_list[i]
+        for i, uv in enumerate(self.uvs_list):
+            name, data = uv
             if i == 0: name = ''
-            if self.tbs:
-                t = self.tbs[vidx][0][i]
-                b = self.tbs[vidx][1][i]
-            try:
-                uv_str = '\n<UV> %s {\n  %s %s\n' % (name, STRF(data[ividx][0]), STRF(data[ividx][1]))
-                if self.tbs:
-                    uv_str += '  <Tangent> { %s %s %s }\n' % (STRF(t[0]), STRF(t[1]), STRF(t[2]))
-                    uv_str += '  <Binormal> { %s %s %s }\n' % (STRF(b[0]), STRF(b[1]), STRF(b[2]))
-                uv_str  += '}'
-                attributes.append(uv_str)
-            except:
-                print('ERROR: can\'t get UV information in "collect_vtx_uv"')
+            uv_str = '<UV> %s {\n  %s %s\n}' % (name, data[ividx][0], data[ividx][1])
+            attributes.append(uv_str)
+
         return attributes
         
     def collect_vertices(self):
         """ Convert and collect vertices info. 
         """
+        xyz = self.collect_vtx_xyz
+        dxyz = self.collect_vtx_dxyz
+        normal = self.collect_vtx_normal
+        rgba = self.collect_vtx_rgba
+        uv = self.collect_vtx_uv
+        
         vertices = []
         idx = 0
         for f in self.obj_ref.data.polygons:
@@ -549,17 +550,19 @@ class EGGMeshObjectData(EGGBaseObjectData):
                 # v - Blender inner vertex index
                 # idx - Vertex index for the EGG
                 attributes = []
-                self.collect_vtx_xyz(v, attributes)
-                self.collect_vtx_dxyz(v, attributes)
-                self.collect_vtx_normal(v, idx, attributes)
-                self.collect_vtx_rgba(idx, attributes)
-                self.collect_vtx_uv(v, idx, attributes)
+                xyz(v, attributes)
+                dxyz(v, attributes)
+                normal(v, idx, attributes)
+                rgba(idx, attributes)
+                uv(v, idx, attributes)
                 str_attr = '\n'.join(attributes)
-                str_attr = str_attr.replace('\n', '\n  ')
-                vtx = '\n<Vertex> ' + str(idx) + ' {' + str_attr + '\n}'
+                vtx = '\n<Vertex> %i {%s\n}' % (idx, str_attr)
                 vertices.append(vtx)
                 idx += 1
         return vertices
+
+        
+
     
     #-------------------------------------------------------------------
     #                           POLYGONS                                
@@ -593,7 +596,7 @@ class EGGMeshObjectData(EGGBaseObjectData):
                 if len(params) == 2:
                     params = (params[0], params[0], params[1])
                 if params[2]:
-                    attributes.append('<TRef> { %s }' % (self.obj_ref.yabee_name + '_' + btype))
+                    attributes.append('<TRef> { %s }' % eggSafeName(self.obj_ref.yabee_name + '_' + btype))
         #return attributes
         return attributes
     
@@ -619,7 +622,8 @@ class EGGMeshObjectData(EGGBaseObjectData):
         @return: list of polygon's attributes.
         """
         no = self.obj_ref.matrix_world.to_euler().to_matrix() * face.normal
-        attributes.append('<Normal> {%s %s %s}' % (STRF(no[0]), STRF(no[1]), STRF(no[2])))
+        #attributes.append('<Normal> {%s %s %s}' % (STRF(no[0]), STRF(no[1]), STRF(no[2])))
+        attributes.append('<Normal> {%f %f %f}' % no[:])
         return attributes
     
     def collect_poly_rgba(self, face, attributes):
@@ -647,33 +651,40 @@ class EGGMeshObjectData(EGGBaseObjectData):
         @return: list of polygon's attributes.
         """
         vr = ' '.join(map(str,self.poly_vtx_ref[face.index]))
-        attributes.append('<VertexRef> { %s <Ref> { %s }}' % (vr, self.obj_ref.yabee_name))
+        attributes.append('<VertexRef> { %s <Ref> { %s }}' % (vr, eggSafeName(self.obj_ref.yabee_name)))
         return attributes
     
     def collect_polygons(self):
         """ Convert and collect polygons info 
         """
+        tref = self.collect_poly_tref
+        mref = self.collect_poly_mref
+        normal = self.collect_poly_normal
+        rgba = self.collect_poly_rgba
+        bface = self.collect_poly_bface
+        vertexref = self.collect_poly_vertexref
         polygons = []
         for f in self.obj_ref.data.polygons:
-            poly = '<Polygon> {\n'
+            #poly = '<Polygon> {\n'
             attributes = []
-            self.collect_poly_tref(f, attributes)
-            self.collect_poly_mref(f, attributes)
-            self.collect_poly_normal(f, attributes)
-            self.collect_poly_rgba(f, attributes)
-            self.collect_poly_bface(f, attributes)
-            self.collect_poly_vertexref(f, attributes)
-            for attr in attributes:
-                for attr_str in attr.splitlines():
-                    poly += '  ' + attr_str + '\n'
-            poly += '}\n'
+            tref(f, attributes)
+            mref(f, attributes)
+            normal(f, attributes)
+            rgba(f, attributes)
+            bface(f, attributes)
+            vertexref(f, attributes)
+            #for attr in attributes:
+            #    for attr_str in attr.splitlines():
+            #        poly += '  ' + attr_str + '\n'
+            poly = '<Polygon> {\n  %s \n}\n' % ('\n  '.join(attributes),)
+
             polygons.append(poly)
         return polygons
         
     def get_vtx_pool_str(self):
         """ Return the vertex pool string in the EGG syntax. 
         """
-        vtx_pool = '<VertexPool> %s {\n' % self.obj_ref.yabee_name
+        vtx_pool = '<VertexPool> %s {\n' % eggSafeName(self.obj_ref.yabee_name)
         vtxs = ''.join(self.collect_vertices())
         vtxs = vtxs.replace('\n', '\n  ')
         vtx_pool += vtxs
@@ -689,9 +700,9 @@ class EGGMeshObjectData(EGGBaseObjectData):
     def get_full_egg_str(self):
         """ Return full mesh data representation in the EGG string syntax 
         """
-        return self.get_transform_str() + '\n' \
-                + self.get_vtx_pool_str() + '\n' \
-                + self.get_polygons_str()
+        return '\n'.join((self.get_transform_str(),
+                        self.get_vtx_pool_str(),
+                        self.get_polygons_str()))
 
 
 #-----------------------------------------------------------------------
@@ -1295,7 +1306,7 @@ def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex,
                 print('ERROR: Can\'t execute pview')
     except Exception as exc:
         result = False
-        print(format_tb(exc.__traceback__)[0])
+        print('\n'.join(format_tb(exc.__traceback__)))
     # Clearing the scene. 
     # (!) Possible Incomplete. 
     # Whenever we are deleted our copy of the scene, 
@@ -1314,14 +1325,21 @@ def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex,
     return result
 
 def write_out_test(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex, 
-              t_path, fp_accuracy, tbs, tex_processor, b_layers):
+              t_path, fp_accuracy, tbs, tex_processor, b_layers, 
+              m_actor, apply_m, pview):
+    #return write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex, 
+    #          t_path, fp_accuracy, tbs, tex_processor, b_layers, 
+    #          m_actor, apply_m, pview)
     import profile
     import pstats
-    wo = "write_out('%s', %s, %s, %s, %s, %s, '%s', %s, '%s', '%s', %s)" % \
+    wo = "write_out('%s', %s, %s, %s, %s, %s, '%s', %s, '%s', '%s', %s, %s, %s, %s)" % \
             (fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex, 
-             t_path, fp_accuracy, tbs, tex_processor, b_layers)
+              t_path, fp_accuracy, tbs, tex_processor, b_layers, 
+              m_actor, apply_m, pview)
+    wo = wo.replace('\\', '\\\\')
     profile.runctx(wo, globals(), {}, 'main_prof')
     stats = pstats.Stats('main_prof')
     stats.strip_dirs()
     stats.sort_stats('time')
     stats.print_stats(10)
+    return True
