@@ -122,7 +122,7 @@ class YABEEProperty(bpy.types.PropertyGroup):
     opt_merge_actor = BoolProperty(
             name="Merge actor",
             description="Merge meshes, armatured by single Armature",
-            default=True,
+            default=False,
             )
             
     opt_apply_modifiers = BoolProperty(
@@ -349,7 +349,7 @@ class ExportPanda3DEGG(bpy.types.Operator, ExportHelper):
         import imp
         imp.reload(egg_writer)
         sett = context.scene.yabee_settings
-        if not egg_writer.write_out(self.filepath, 
+        errors = egg_writer.write_out(self.filepath, 
                             sett.opt_anim_list.get_anim_dict(),
                             sett.opt_export_uv_as_texture, 
                             sett.opt_separate_anim_files, 
@@ -362,10 +362,18 @@ class ExportPanda3DEGG(bpy.types.Operator, ExportHelper):
                             sett.get_bake_dict(),
                             sett.opt_merge_actor,
                             sett.opt_apply_modifiers,
-                            sett.opt_pview):
-            self.report({'ERROR'}, 'Unexpected error during export! See to console for more info.')
+                            sett.opt_pview)
+        if not errors:
+            return {'FINISHED'}
+        else:
+            rep_msg = ''
+            if 'ERR_UNEXPECTED' in errors:
+                rep_msg += 'Unexpected error during export! See console for traceback.\n'
+            if 'ERR_MK_HIERARCHY' in errors:
+                rep_msg += 'Error while creating hierarchy. Check parent objects and armatures.'
+            self.report({'ERROR'}, rep_msg)
             return {'CANCELLED'}
-        return {'FINISHED'}
+        
         
     def invoke(self, context, evt):
         if context.scene.yabee_settings.first_run:

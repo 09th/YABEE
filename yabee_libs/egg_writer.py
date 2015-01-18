@@ -104,22 +104,27 @@ class Group:
         
         @param obj_list: tuple or lis of blender's objects.
         """
-        if self.object and self.object.__class__ != bpy.types.Bone and \
-        self.object.type == 'ARMATURE':
-            obj_list += self.object.data.bones
-            for bone in self.object.data.bones:
-                if not bone.parent:
-                    gr = self.__class__(bone, self.object)
+        try:
+            if self.object and self.object.__class__ != bpy.types.Bone and \
+            self.object.type == 'ARMATURE':
+                obj_list += self.object.data.bones
+                for bone in self.object.data.bones:
+                    if not bone.parent:
+                        gr = self.__class__(bone, self.object)
+                        self.children.append(gr)
+                        gr.make_hierarchy_from_list(obj_list)
+            for obj in obj_list:
+                if self.check_parenting(self.object, obj, obj_list) > 0:
+                    if obj.__class__ == bpy.types.Bone:
+                        gr = self.__class__(obj, self.arm_owner)
+                    else:
+                        gr = self.__class__(obj)
                     self.children.append(gr)
                     gr.make_hierarchy_from_list(obj_list)
-        for obj in obj_list:
-            if self.check_parenting(self.object, obj, obj_list) > 0:
-                if obj.__class__ == bpy.types.Bone:
-                    gr = self.__class__(obj, self.arm_owner)
-                else:
-                    gr = self.__class__(obj)
-                self.children.append(gr)
-                gr.make_hierarchy_from_list(obj_list)
+        except Exception as exc:
+            print('\n'.join(format_tb(exc.__traceback__)))
+            return False
+        return True
                 
     def print_hierarchy(self, level = 0):
         """ Debug function to print out hierarchy to console.
@@ -1173,7 +1178,7 @@ def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex,
            MERGE_ACTOR_MESH, APPLY_MOD, PVIEW, USED_MATERIALS, USED_TEXTURES
     imp.reload(sys.modules[lib_name + '.texture_processor'])
     imp.reload(sys.modules[lib_name + '.utils'])
-    result = True
+    errors = []
     # === prepare to write ===
     FILE_PATH = fname
     ANIMATIONS = anims
@@ -1259,62 +1264,64 @@ def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex,
         obj_list += incl_arm
         print('obj list', obj_list)
             
-        gr.make_hierarchy_from_list(obj_list)
-        gr.print_hierarchy()
-        gr.update_joints_data()
+        if gr.make_hierarchy_from_list(obj_list):
+            gr.print_hierarchy()
+            gr.update_joints_data()
 
-        fdir, fname = os.path.split(os.path.abspath(FILE_PATH))
-        if not os.path.exists(fdir):
-            print('PATH %s not exist. Trying to make path' % fdir)
-            os.makedirs(fdir)
-        # === write egg data ===
-        print('WRITE main EGG to %s' % os.path.abspath(FILE_PATH))
-        if ((not ANIM_ONLY) or (not SEPARATE_ANIM_FILE)):
-            file = open(FILE_PATH, 'w')
-        if not ANIM_ONLY:
-            file.write('<CoordinateSystem> { Z-up } \n')
-            materials_str, USED_MATERIALS, USED_TEXTURES = get_egg_materials_str()
-            file.write(materials_str)
-            file.write(gr.get_full_egg_str())
-        fpa = []
-        for a_name, frames in ANIMATIONS.items():
-            ac = AnimCollector(obj_list, 
-                                frames[0], 
-                                frames[1], 
-                                frames[2], 
-                                a_name)
-            if not SEPARATE_ANIM_FILE:
-                file.write(ac.get_full_egg_str())
-            else:
-                a_path = FILE_PATH
-                if a_path[-4:].upper() == '.EGG':
-                    a_path = a_path[:-4] + '-' + a_name + a_path[-4:]
+            fdir, fname = os.path.split(os.path.abspath(FILE_PATH))
+            if not os.path.exists(fdir):
+                print('PATH %s not exist. Trying to make path' % fdir)
+                os.makedirs(fdir)
+            # === write egg data ===
+            print('WRITE main EGG to %s' % os.path.abspath(FILE_PATH))
+            if ((not ANIM_ONLY) or (not SEPARATE_ANIM_FILE)):
+                file = open(FILE_PATH, 'w')
+            if not ANIM_ONLY:
+                file.write('<CoordinateSystem> { Z-up } \n')
+                materials_str, USED_MATERIALS, USED_TEXTURES = get_egg_materials_str()
+                file.write(materials_str)
+                file.write(gr.get_full_egg_str())
+            fpa = []
+            for a_name, frames in ANIMATIONS.items():
+                ac = AnimCollector(obj_list, 
+                                    frames[0], 
+                                    frames[1], 
+                                    frames[2], 
+                                    a_name)
+                if not SEPARATE_ANIM_FILE:
+                    file.write(ac.get_full_egg_str())
                 else:
-                    a_path = a_path + '-' + a_name + '.egg'
-                a_egg_str = ac.get_full_egg_str()
-                if len(a_egg_str) > 0:
-                    a_file = open(a_path, 'w')
-                    a_file.write('<CoordinateSystem> { Z-up } \n')
-                    a_file.write(ac.get_full_egg_str())
-                    a_file.close()
-                    fpa.append(a_path)
-        if ((not ANIM_ONLY) or (not SEPARATE_ANIM_FILE)):
-            file.close()
-        if CALC_TBS == 'PANDA':
-            try:
-                fp = os.path.abspath(FILE_PATH)
-                for line in os.popen('egg-trans -tbnall -o "%s" "%s"' % (fp, fp)).readlines():
-                    print(line)
-            except:
-                print('ERROR: Can\'t calculate TBS through panda\'s egg-trans')
-        if PVIEW:
-            try:
-                fp = os.path.abspath(FILE_PATH)
-                subprocess.Popen(['pview', fp] + fpa)
-            except:
-                print('ERROR: Can\'t execute pview')
+                    a_path = FILE_PATH
+                    if a_path[-4:].upper() == '.EGG':
+                        a_path = a_path[:-4] + '-' + a_name + a_path[-4:]
+                    else:
+                        a_path = a_path + '-' + a_name + '.egg'
+                    a_egg_str = ac.get_full_egg_str()
+                    if len(a_egg_str) > 0:
+                        a_file = open(a_path, 'w')
+                        a_file.write('<CoordinateSystem> { Z-up } \n')
+                        a_file.write(ac.get_full_egg_str())
+                        a_file.close()
+                        fpa.append(a_path)
+            if ((not ANIM_ONLY) or (not SEPARATE_ANIM_FILE)):
+                file.close()
+            if CALC_TBS == 'PANDA':
+                try:
+                    fp = os.path.abspath(FILE_PATH)
+                    for line in os.popen('egg-trans -tbnall -o "%s" "%s"' % (fp, fp)).readlines():
+                        print(line)
+                except:
+                    print('ERROR: Can\'t calculate TBS through panda\'s egg-trans')
+            if PVIEW:
+                try:
+                    fp = os.path.abspath(FILE_PATH)
+                    subprocess.Popen(['pview', fp] + fpa)
+                except:
+                    print('ERROR: Can\'t execute pview')
+        else:
+            errors.append('ERR_MK_HIERARCHY')
     except Exception as exc:
-        result = False
+        errors.append('ERR_UNEXPECTED')
         print('\n'.join(format_tb(exc.__traceback__)))
     # Clearing the scene. 
     # (!) Possible Incomplete. 
@@ -1331,7 +1338,7 @@ def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex,
                     d.remove(obj)
                 except:
                     print ('WARNING: Can\'t delete', obj, 'from', d)
-    return result
+    return errors
 
 def write_out_test(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex, 
               t_path, fp_accuracy, tbs, tex_processor, b_layers, 
