@@ -14,14 +14,10 @@ bl_info = {
     "tracker_url": "yabee.googlecode.com",
     "category": "Import-Export"}
 
-if "bpy" in locals():
-    import imp
-    if 'egg_writer' in locals():
-        imp.reload(egg_writer)
-
 import bpy
 from bpy_extras.io_utils import ExportHelper
 from bpy.props import *
+from .yabee_libs import egg_writer
 
 # --------------- Properties --------------------
 
@@ -329,6 +325,7 @@ class RemoveAnim(bpy.types.Operator):
         return {'FINISHED'}
 
 
+
 class ExportPanda3DEGG(bpy.types.Operator, ExportHelper):
     ''' Export selected to the Panda3D EGG format '''
     bl_idname = "export.panda3d_egg"  
@@ -348,8 +345,6 @@ class ExportPanda3DEGG(bpy.types.Operator, ExportHelper):
     #    return len(context.selected_objects) > 0
 
     def execute(self, context):
-        #return write_some_data(context, self.filepath, self.use_setting)
-        from .yabee_libs import egg_writer
         import imp
         imp.reload(egg_writer)
         sett = context.scene.yabee_settings
@@ -360,7 +355,6 @@ class ExportPanda3DEGG(bpy.types.Operator, ExportHelper):
                             sett.opt_anim_only,
                             sett.opt_copy_tex_files, 
                             sett.opt_tex_path, 
-                            6,
                             sett.opt_tbs_proc,
                             sett.opt_tex_proc,
                             sett.get_bake_dict(),
@@ -418,11 +412,15 @@ def register():
     bpy.types.PoseBone.yabee_name = StringProperty(name="YABEE_Name", default="Unknown")
 
     bpy.types.INFO_MT_file_export.append(menu_func_export)
+    # Add link for export function to use in another addon
+    __builtins__['p3d_egg_export'] = egg_writer.write_out
 
 
 def unregister():
     bpy.utils.unregister_module(__name__)
     bpy.types.INFO_MT_file_export.remove(menu_func_export)
+    del(__builtins__['p3d_egg_export'])
+
 
 
 if __name__ == "__main__":

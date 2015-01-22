@@ -1226,8 +1226,8 @@ def generate_shadow_uvs():
 #                           WRITE OUT                                   
 #-----------------------------------------------------------------------
 def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex, 
-              t_path, fp_accuracy, tbs, tex_processor, b_layers, 
-              m_actor, apply_m, pview):
+              t_path, tbs, tex_processor, b_layers, 
+              m_actor, apply_m, pview, objects=None):
     global FILE_PATH, ANIMATIONS, EXPORT_UV_IMAGE_AS_TEXTURE, \
            COPY_TEX_FILES, TEX_PATH, SEPARATE_ANIM_FILE, ANIM_ONLY, \
            STRF, CALC_TBS, TEXTURE_PROCESSOR, BAKE_LAYERS, \
@@ -1249,7 +1249,7 @@ def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex,
     MERGE_ACTOR_MESH = m_actor
     APPLY_MOD = apply_m
     PVIEW = pview
-    s_acc = '%.' + str(fp_accuracy) + 'f'
+    s_acc = '%.6f'
     def str_f(x):
         return s_acc % x
     STRF = str_f
@@ -1257,7 +1257,9 @@ def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex,
     # Sync objects names with custom property "yabee_name" 
     # to be able to get basic object name in the copy of the scene.
     #selected_obj = [obj.name for obj in bpy.context.selected_objects if obj.type != 'ARMATURE']
-    selected_obj = [obj.name for obj in bpy.context.selected_objects]
+    selected_obj = objects
+    if not selected_obj:
+        selected_obj = [obj.name for obj in bpy.context.selected_objects]
     for obj in bpy.data.objects:
         obj.yabee_name = obj.name
     for item in (bpy.data.meshes, bpy.data.materials, bpy.data.textures, 
@@ -1294,7 +1296,7 @@ def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex,
         if bpy.ops.object.mode_set.poll():
             bpy.ops.object.mode_set(mode='OBJECT')
         # Generate UV layers for shadows
-        if BAKE_LAYERS['AO'][2] or BAKE_LAYERS['shadow'][2]:
+        if BAKE_LAYERS and (BAKE_LAYERS['AO'][2] or BAKE_LAYERS['shadow'][2]):
             generate_shadow_uvs()
         gr = Group(None)
         
@@ -1397,16 +1399,16 @@ def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex,
     return errors
 
 def write_out_test(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex, 
-              t_path, fp_accuracy, tbs, tex_processor, b_layers, 
+              t_path, tbs, tex_processor, b_layers, 
               m_actor, apply_m, pview):
     #return write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex, 
-    #          t_path, fp_accuracy, tbs, tex_processor, b_layers, 
+    #          t_path, tbs, tex_processor, b_layers, 
     #          m_actor, apply_m, pview)
     import profile
     import pstats
-    wo = "write_out('%s', %s, %s, %s, %s, %s, '%s', %s, '%s', '%s', %s, %s, %s, %s)" % \
+    wo = "write_out('%s', %s, %s, %s, %s, '%s', %s, '%s', '%s', %s, %s, %s, %s)" % \
             (fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex, 
-              t_path, fp_accuracy, tbs, tex_processor, b_layers, 
+              t_path, tbs, tex_processor, b_layers, 
               m_actor, apply_m, pview)
     wo = wo.replace('\\', '\\\\')
     profile.runctx(wo, globals(), {}, 'main_prof')
