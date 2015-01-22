@@ -6,11 +6,15 @@ from mathutils import *
 from math import pi
 #import io_scene_egg.yabee_libs
 #from . import yabee_libs
-from .texture_processor import SimpleTextures, TextureBaker
+from .texture_processor import SimpleTextures, TextureBaker, RawTextures
 from .utils import *
 import subprocess
 import imp
-from traceback import format_tb
+from traceback import format_tb, print_exc
+try:
+    from . import mikktspace
+except:
+    print('WARNING: Can\'t load mikktspace module')
 
 lib_name = '.'.join(__name__.split('.')[:-1])
 imp.reload(sys.modules[lib_name + '.texture_processor'])
@@ -110,21 +114,34 @@ class Group:
                 obj_list += self.object.data.bones
                 for bone in self.object.data.bones:
                     if not bone.parent:
-                        gr = self.__class__(bone, self.object)
+                        try:
+                            gr = self.__class__(bone, self.object)
+                        except:
+                            print_exc()
+                            return ['ERR_MK_OBJ',]
                         self.children.append(gr)
                         gr.make_hierarchy_from_list(obj_list)
             for obj in obj_list:
                 if self.check_parenting(self.object, obj, obj_list) > 0:
                     if obj.__class__ == bpy.types.Bone:
-                        gr = self.__class__(obj, self.arm_owner)
+                        try:
+                            gr = self.__class__(obj, self.arm_owner)
+                        except:
+                            print_exc()
+                            return ['ERR_MK_OBJ',]
                     else:
-                        gr = self.__class__(obj)
+                        try:
+                            gr = self.__class__(obj)
+                        except:
+                            print_exc()
+                            return ['ERR_MK_OBJ',]
                     self.children.append(gr)
                     gr.make_hierarchy_from_list(obj_list)
         except Exception as exc:
-            print('\n'.join(format_tb(exc.__traceback__)))
-            return False
-        return True
+            #print('\n'.join(format_tb(exc.__traceback__)))
+            print_exc()
+            return ['ERR_MK_HIERARCHY',]
+        return []
                 
     def print_hierarchy(self, level = 0):
         """ Debug function to print out hierarchy to console.
@@ -399,8 +416,9 @@ class EGGMeshObjectData(EGGBaseObjectData):
         self.smooth_vtx_list = self.get_smooth_vtx_list()
         self.colors_vtx_ref = self.pre_convert_vtx_color()
         self.uvs_list = self.pre_convert_uvs()
-        self.tbs = None
-            
+        self.tangent_layers = None
+        if CALC_TBS == 'BLENDER':
+            self.tangent_layers = self.pre_calc_TBS()
 
 
     #-------------------------------------------------------------------
@@ -471,6 +489,20 @@ class EGGMeshObjectData(EGGBaseObjectData):
             #        color_vtx_ref.append(col[vi])
         return color_vtx_ref
     
+    def pre_calc_TBS(self):
+        """ Use Blender internal algorythm to generate tangent and 
+        bitangent (binormal) for each UV layer
+        """
+        tangent_layers = []
+        for idx, uvl in enumerate(self.obj_ref.data.uv_layers):
+            tangents = []
+            self.obj_ref.data.calc_tangents(uvl.name)
+            for loop in self.obj_ref.data.loops:
+                tangents.append(loop.tangent[:]+loop.bitangent[:])
+            tangent_layers.append(tangents)
+        return tangent_layers
+    
+
     #-------------------------------------------------------------------
     #                           VERTICES                                
 
@@ -516,6 +548,8 @@ class EGGMeshObjectData(EGGBaseObjectData):
         """
         if idx in self.smooth_vtx_list:
             no = self.obj_ref.matrix_world.to_euler().to_matrix() * self.obj_ref.data.vertices[v].normal
+            #no = self.obj_ref.data.vertices[v].normal
+            #no = self.obj_ref.data.loops[idx].normal
             attributes.append('<Normal> { %f %f %f }' % no[:])
         return attributes
         
@@ -529,6 +563,7 @@ class EGGMeshObjectData(EGGBaseObjectData):
         """ Add <UV> to the vertex attributes list.
         
         @param vidx: the EGG (converted) vertex index.
+        @param ividx: Blender internal vertex index.
         @param attributes: list of vertex attributes
         
         @return: list of vertex attributes.
@@ -536,7 +571,10 @@ class EGGMeshObjectData(EGGBaseObjectData):
         for i, uv in enumerate(self.uvs_list):
             name, data = uv
             if i == 0: name = ''
-            uv_str = '<UV> %s {\n  %s %s\n}' % (name, data[ividx][0], data[ividx][1])
+            tbs = ''
+            if self.tangent_layers:
+                tbs = '\n    <Tangent> {%f %f %f}\n    <Binormal> {%f %f %f}' % self.tangent_layers[i][ividx]
+            uv_str = '  <UV> %s {\n    %s %s %s\n  }' % (name, data[ividx][0], data[ividx][1], tbs)
             attributes.append(uv_str)
 
         return attributes
@@ -587,29 +625,36 @@ class EGGMeshObjectData(EGGBaseObjectData):
             if EXPORT_UV_IMAGE_AS_TEXTURE:
                 for uv_tex in self.obj_ref.data.uv_textures:
                     #if uv_tex.data[face.index].image.source == 'FILE':
-                    tex_name = eggSafeName(uv_tex.data[face.index].image.yabee_name)
+                    tex_name = uv_tex.data[face.index].image.yabee_name
                     if tex_name in USED_TEXTURES:
                         attributes.append('<TRef> { %s }' % tex_name)
             if face.material_index < len(self.obj_ref.data.materials):
                 mat = self.obj_ref.data.materials[face.material_index]
-                tex_idx = 0
                 for tex in [tex for tex in mat.texture_slots if tex]:
-                    tex_name = eggSafeName(tex.texture.yabee_name)
+                    tex_name = tex.texture.yabee_name
                     if tex_name in USED_TEXTURES:
-                    #if (tex.texture_coords in ('UV', 'GLOBAL')
-                    #     and (not tex.texture.use_nodes)
-                    #     and (mat.use_textures[tex_idx])):                    
-                    #        if tex.texture.type == 'IMAGE' and tex.texture.image and tex.texture.image.source == 'FILE':
                                 attributes.append('<TRef> { %s }' % tex_name)
-                    tex_idx += 1
-        #elif TEXTURE_PROCESSOR == 'BAKE':
-        if self.obj_ref.data.uv_textures:
-            for btype, params in BAKE_LAYERS.items():
-                if len(params) == 2:
-                    params = (params[0], params[0], params[1])
-                if params[2]:
-                    attributes.append('<TRef> { %s }' % eggSafeName(self.obj_ref.yabee_name + '_' + btype))
-        #return attributes
+        
+        if TEXTURE_PROCESSOR == 'RAW':
+            textures = []
+            if face.material_index < len(self.obj_ref.data.materials):
+                mat = self.obj_ref.data.materials[face.material_index]
+                for tex in [tex for tex in mat.texture_slots if tex]:
+                    tex_name = tex.texture.yabee_name
+                    if tex_name in USED_TEXTURES and tex_name not in textures:
+                            textures.append(tex_name)
+            for tex_name in textures:
+                attributes.append('<TRef> { %s }' % tex_name)
+        else:
+            if self.obj_ref.data.uv_textures:
+                for btype, params in BAKE_LAYERS.items():
+                    if len(params) == 2:
+                        params = (params[0], params[0], params[1])
+                    if params[2]:
+                        attributes.append('<TRef> { %s }' \
+                                    % eggSafeName(self.obj_ref.yabee_name \
+                                    + '_' + btype))
+
         return attributes
     
     def collect_poly_mref(self, face, attributes):
@@ -788,9 +833,14 @@ class EGGAnimJoint(Group):
                 ((self.object == None) and 
                  (str(obj.parent) not in map(str,obj_list)) and 
                  (str(obj) not in [str(ch.object) for ch in self.children]))):
-                gr = self.__class__(obj)
+                try:
+                    gr = self.__class__(obj)
+                except:
+                    print_exc()
+                    return ['ERR_MK_OBJ',]
                 self.children.append(gr)
                 gr.make_hierarchy_from_list(obj_list)
+        return []
                 
     def get_full_egg_str(self, anim_info, framerate, level = 0):
         """ Create and return the string representation of the <Joint>
@@ -1039,12 +1089,18 @@ def get_egg_materials_str():
                             EXPORT_UV_IMAGE_AS_TEXTURE, 
                             COPY_TEX_FILES, 
                             FILE_PATH, TEX_PATH)
-        #used_textures = dict(list(used_textures) + list(st.get_used_textures()))
         used_textures.update(st.get_used_textures())
-    #elif TEXTURE_PROCESSOR == 'BAKE':
-    tb = TextureBaker(bpy.context.selected_objects, FILE_PATH, TEX_PATH)
-    #used_textures = dict(list(used_textures) + list(tb.bake(BAKE_LAYERS)))
-    used_textures.update(tb.bake(BAKE_LAYERS))
+    elif TEXTURE_PROCESSOR == 'RAW':
+        rt = RawTextures(bpy.context.selected_objects, 
+                         EXPORT_UV_IMAGE_AS_TEXTURE, 
+                         COPY_TEX_FILES, 
+                         FILE_PATH, TEX_PATH)
+        used_textures.update(rt.get_used_textures())
+    
+    if TEXTURE_PROCESSOR != 'RAW':
+        tb = TextureBaker(bpy.context.selected_objects, FILE_PATH, TEX_PATH)
+        used_textures.update(tb.bake(BAKE_LAYERS))
+        
     for name, params in used_textures.items():
         mat_str += '<Texture> %s {\n' % eggSafeName(name)
         mat_str += '  "' + convertFileNameToPanda(params['path']) + '"\n'
@@ -1264,7 +1320,8 @@ def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex,
         obj_list += incl_arm
         print('obj list', obj_list)
             
-        if gr.make_hierarchy_from_list(obj_list):
+        errors += gr.make_hierarchy_from_list(obj_list)
+        if not errors:
             gr.print_hierarchy()
             gr.update_joints_data()
 
@@ -1318,11 +1375,10 @@ def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex,
                     subprocess.Popen(['pview', fp] + fpa)
                 except:
                     print('ERROR: Can\'t execute pview')
-        else:
-            errors.append('ERR_MK_HIERARCHY')
     except Exception as exc:
         errors.append('ERR_UNEXPECTED')
-        print('\n'.join(format_tb(exc.__traceback__)))
+        #print('\n'.join(format_tb(exc.__traceback__)))
+        print_exc()
     # Clearing the scene. 
     # (!) Possible Incomplete. 
     # Whenever we are deleted our copy of the scene, 

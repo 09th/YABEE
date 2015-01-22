@@ -13,6 +13,7 @@ BAKE_TYPES = {'diffuse': ('TEXTURE', 'MODULATE'),
               'shadow': ('SHADOW', 'MODULATE')
               }
 
+
 class SimpleTextures():
     
     def __init__(self, obj_list, uv_img_as_texture, copy_tex, file_path, tex_path):
@@ -194,7 +195,90 @@ class SimpleTextures():
                                 #except:
                                 #    print('ERROR: can\'t get texture image on %s.' % tex.texture.name)
         return tex_list
-        
+
+
+
+
+class RawTextures(SimpleTextures):
+    
+    
+    def is_slot_valid(self, tex):
+        if tex and tex.texture and tex.texture.type == 'IMAGE' \
+               and tex.texture.image \
+               and tex.texture.image.source == 'FILE':
+            return True
+
+        return False
+    
+    
+    def get_used_textures(self):
+        tex_list = {}
+        for obj in self.obj_list:
+            if obj.type == 'MESH':
+                for material in obj.data.materials:
+                    valid_slots = self.get_valid_slots(material.texture_slots)
+
+                    for tex in valid_slots:
+                        scalars = []
+                        transform = []
+                        if not tex.texture.yabee_name in list(tex_list.keys()):
+                            t_path = tex.texture.image.filepath
+                            if self.copy_tex:
+                                t_path = save_image(tex.texture.image, self.file_path, self.tex_path)
+                                
+                            tex_list[tex.texture.yabee_name] = {'path': t_path,
+                                                                'scalars': scalars, 
+                                                                'transform': transform }
+                            if(tex.texture.use_mipmap):
+                                scalars.append(('minfilter', 'LINEAR_MIPMAP_LINEAR'))
+                                scalars.append(('magfilter', 'LINEAR_MIPMAP_LINEAR'))
+
+                            # Process wrap modes.
+                            if(tex.texture.extension == 'EXTEND'):
+                                scalars.append(('wrap', 'CLAMP'))
+
+                            elif(tex.texture.extension in ('CLIP', 'CLIP_CUBE')):
+                                scalars.append(('wrap', 'BORDER_COLOR'))
+                                scalars.append(('borderr', '1'))
+                                scalars.append(('borderg', '1'))
+                                scalars.append(('borderb', '1'))
+                                scalars.append(('bordera', '1'))
+
+                            elif(tex.texture.extension in ('REPEAT', 'CHECKER')):
+                                scalars.append(('wrap', 'REPEAT'))
+
+                            # Process coordinate mapping using a matrix.
+                            mappings = (tex.mapping_x, tex.mapping_y, tex.mapping_z)
+
+                            if mappings != ('X', 'Y', 'Z'):
+                                matrix = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
+
+                                for col, mapping in enumerate(mappings):
+                                    if mapping == 'Z' and tex.texture_coords == 'UV':
+                                        # Z is not present when using UV coordinates.
+                                        mapping = 'NONE'
+
+                                    if mapping == 'NONE':
+                                        # It seems that Blender sets Z to 0.5 when it is not present.
+                                        matrix[4 * 3 + col] = 0.5
+                                    else:
+                                        row = ord(mapping) - ord('X')
+                                        matrix[4 * row + col] = 1
+
+                                transform.append(('Matrix4', matrix))
+
+                            # Process texture transformations.
+                            if(tuple(tex.scale) != (1.0, 1.0, 1.0)):
+                                # Blender scales from the centre, so shift it before scaling and then shift it back.
+                                transform.append(('Translate', (-0.5, -0.5, -0.5)))
+                                transform.append(('Scale', tex.scale))
+                                transform.append(('Translate', (0.5, 0.5, 0.5)))
+
+                            if(tuple(tex.offset) != (0.0, 0.0, 0.0)):
+                                transform.append(('Translate', tex.offset))
+    
+        return tex_list
+
 
 class TextureBaker():
     

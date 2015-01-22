@@ -67,7 +67,8 @@ class YABEEProperty(bpy.types.PropertyGroup):
             name="Tex. processing",
             description="Export all textures as MODULATE or bake texture layers",
             items=(('SIMPLE', "Simple", "Export all texture layers."),
-                   ('BAKE', "Bake", "Bake textures.")),
+                   ('BAKE', "Bake", "Bake textures."),
+                   ('RAW', "Raw", "Raw textures for using with Blender shaders.")),
             default='SIMPLE',
             )
             
@@ -84,6 +85,7 @@ class YABEEProperty(bpy.types.PropertyGroup):
             description="Export all textures as MODULATE or bake texture layers",
             items=(('PANDA', "Panda", "Use egg-trans to calculate TBS (Need installed Panda3D)."),
                    #('INTERNAL', "Internal", "Use internal YABEE TBS generator"),
+                   ('BLENDER', "Blender", "Use Blender to calculate TBS"),
                    ('NO', "No", "Do not generate TBS.")),
             default='NO',
             )
@@ -177,15 +179,17 @@ class YABEEProperty(bpy.types.PropertyGroup):
                 self.opt_bake_normal.draw(box.row(align = True), "Normal")
                 self.opt_bake_gloss.draw(box.row(align = True), "Gloss")
                 self.opt_bake_glow.draw(box.row(align = True), "Glow")
-            self.opt_bake_AO.draw(box.row(align = True), "AO")
-            self.opt_bake_shadow.draw(box.row(align = True), "Shadow")
+            if self.opt_tex_proc != 'RAW':
+                self.opt_bake_AO.draw(box.row(align = True), "AO")
+                self.opt_bake_shadow.draw(box.row(align = True), "Shadow")
             #else:
             #    layout.row().prop(self, 'opt_tex_proc')
             if self.opt_tex_proc == 'SIMPLE':
-                layout.row().prop(self, 'opt_export_uv_as_texture')
+                #layout.row().prop(self, 'opt_export_uv_as_texture')
+                box.row().prop(self, 'opt_export_uv_as_texture')
             if self.opt_copy_tex_files or self.opt_tex_proc == 'BAKE':
                 box = layout.box()
-                if self.opt_tex_proc == 'SIMPLE':
+                if self.opt_tex_proc in ('SIMPLE', 'RAW'):
                     box.row().prop(self, 'opt_copy_tex_files')
                 box.row().prop(self, 'opt_tex_path')
             else:
@@ -371,6 +375,8 @@ class ExportPanda3DEGG(bpy.types.Operator, ExportHelper):
                 rep_msg += 'Unexpected error during export! See console for traceback.\n'
             if 'ERR_MK_HIERARCHY' in errors:
                 rep_msg += 'Error while creating hierarchy. Check parent objects and armatures.'
+            if 'ERR_MK_OBJ' in errors:
+                rep_msg += 'Unexpected error while creating object. See console for traceback.'
             self.report({'ERROR'}, rep_msg)
             return {'CANCELLED'}
         
