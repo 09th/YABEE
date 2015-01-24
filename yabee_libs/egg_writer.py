@@ -420,6 +420,18 @@ class EGGMeshObjectData(EGGBaseObjectData):
         if CALC_TBS == 'BLENDER':
             self.tangent_layers = self.pre_calc_TBS()
 
+        # Check if we may need to generate ORCO coordinates.
+        need_orco = False
+        for f in self.obj_ref.data.polygons:
+            if f.material_index >= len(obj.data.materials):
+                continue
+            for slot in obj.data.materials[f.material_index].texture_slots:
+                if slot.texture_coords == 'ORCO':
+                    need_orco = True
+                    break
+
+        if need_orco:
+            self.pre_calc_ORCO()
 
     #-------------------------------------------------------------------
     #                           AUXILIARY                               
@@ -501,7 +513,38 @@ class EGGMeshObjectData(EGGBaseObjectData):
                 tangents.append(loop.tangent[:]+loop.bitangent[:])
             tangent_layers.append(tangents)
         return tangent_layers
-    
+
+    def pre_calc_ORCO(self):
+        """ Generate texture coordinates for ORCO slots
+        """
+        # We first have to calculate the min and max vertex position...
+        minmax = None
+        for f in self.obj_ref.data.polygons:
+            for v in f.vertices:
+                pos = self.obj_ref.data.vertices[v].co
+                if minmax is None:
+                    minmax = (list(pos), list(pos))
+                for i in range(3):
+                    minmax[0][i] = min(pos[i], minmax[0][i])
+                    minmax[1][i] = max(pos[i], minmax[1][i])
+
+        if not minmax:
+            return
+
+        inv_dims = [0, 0, 0]
+        for i in (0, 1, 2):
+            delta = (minmax[1][i] - minmax[0][i])
+            if delta > 0: # Prevent divide by zero
+                inv_dims[i] = 1.0 / delta
+
+        data = []
+        for f in self.obj_ref.data.polygons:
+            for v in f.vertices:
+                pos = self.obj_ref.data.vertices[v].co
+                orco = [(pos[i] - minmax[0][i]) * inv_dims[i] for i in (0, 1, 2)]
+                data.append(orco)
+
+        self.uvs_list.append(('ORCO', data))
 
     #-------------------------------------------------------------------
     #                           VERTICES                                
@@ -570,7 +613,7 @@ class EGGMeshObjectData(EGGBaseObjectData):
         """
         for i, uv in enumerate(self.uvs_list):
             name, data = uv
-            if i == 0: name = ''
+            if i == 0 and name != 'ORCO': name = ''
             tbs = ''
             if self.tangent_layers:
                 tbs = '\n    <Tangent> {%f %f %f}\n    <Binormal> {%f %f %f}' % self.tangent_layers[i][ividx]

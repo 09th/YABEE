@@ -25,7 +25,7 @@ class SimpleTextures():
         
     def is_slot_valid(self, tex):
         if ((tex) and (not tex.texture.use_nodes)):
-            if tex.texture_coords in ('UV', 'GLOBAL'):
+            if tex.texture_coords in ('UV', 'GLOBAL', 'ORCO'):
                 if tex.texture.type == 'IMAGE' and tex.texture.image and tex.texture.image.source == 'FILE':
                     return True
 
@@ -82,7 +82,7 @@ class SimpleTextures():
 
                 # General textures
                 for f in obj.data.polygons:
-                    if obj.data.uv_textures and f.material_index < len(obj.data.materials):
+                    if f.material_index < len(obj.data.materials):
                         valid_slots = self.get_valid_slots(obj.data.materials[f.material_index].texture_slots)
                         alpha_tex = self.get_alpha_slot(valid_slots)
                         alpha_map_assigned = False
@@ -101,6 +101,10 @@ class SimpleTextures():
 
                                 if uv_name:
                                     scalars.append(('uv-name', uv_name))
+
+                            elif tex.texture_coords == 'ORCO':
+                                # We generate a set of UVs for this elsewhere.
+                                scalars.append(('uv-name', 'ORCO'))
 
                             elif tex.texture_coords == 'GLOBAL':
                                 scalars.append(('tex-gen', 'WORLD_POSITION'))
