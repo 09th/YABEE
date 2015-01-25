@@ -426,7 +426,7 @@ class EGGMeshObjectData(EGGBaseObjectData):
             if f.material_index >= len(obj.data.materials):
                 continue
             for slot in obj.data.materials[f.material_index].texture_slots:
-                if slot.texture_coords == 'ORCO':
+                if slot and slot.texture_coords == 'ORCO':
                     need_orco = True
                     break
 
