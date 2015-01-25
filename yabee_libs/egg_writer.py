@@ -11,10 +11,7 @@ from .utils import *
 import subprocess
 import imp
 from traceback import format_tb, print_exc
-try:
-    from . import mikktspace
-except:
-    print('WARNING: Can\'t load mikktspace module')
+
 
 lib_name = '.'.join(__name__.split('.')[:-1])
 imp.reload(sys.modules[lib_name + '.texture_processor'])
