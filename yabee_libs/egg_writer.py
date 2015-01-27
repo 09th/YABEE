@@ -1077,11 +1077,11 @@ class AnimCollector():
 #-----------------------------------------------------------------------
 #                     SCENE MATERIALS & TEXTURES                        
 #-----------------------------------------------------------------------
-def get_used_materials():
+def get_used_materials(objects):
     """ Collect Materials used in the selected object. 
     """
     m_list = []
-    for obj in bpy.context.selected_objects:
+    for obj in objects:
         if obj.type == 'MESH':
             for f in obj.data.polygons:
                 if f.material_index < len(obj.data.materials):
@@ -1090,13 +1090,22 @@ def get_used_materials():
 
 
 
-def get_egg_materials_str():
+def get_egg_materials_str(object_names=None):
     """ Return the EGG string of used materials
     """
-    if not bpy.context.selected_objects:
+    if not object_names:
+        objects = bpy.context.selected_objects
+    else:
+        objects = []
+        for name in object_names:
+            for obj in bpy.context.scene.objects:
+                if obj.yabee_name == name:
+                    objects.append(obj)
+    if not objects:
         return ''
+    
     mat_str = ''
-    used_materials = get_used_materials()
+    used_materials = get_used_materials(objects)
     for m_idx in used_materials:
         mat = bpy.data.materials[m_idx]
         mat_str += '<Material> %s {\n' % eggSafeName(mat.yabee_name)
@@ -1377,7 +1386,7 @@ def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex,
                 file = open(FILE_PATH, 'w')
             if not ANIM_ONLY:
                 file.write('<CoordinateSystem> { Z-up } \n')
-                materials_str, USED_MATERIALS, USED_TEXTURES = get_egg_materials_str()
+                materials_str, USED_MATERIALS, USED_TEXTURES = get_egg_materials_str(selected_obj)
                 file.write(materials_str)
                 file.write(gr.get_full_egg_str())
             fpa = []
