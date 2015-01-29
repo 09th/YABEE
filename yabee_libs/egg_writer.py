@@ -1109,7 +1109,7 @@ def get_egg_materials_str(object_names=None):
     for m_idx in used_materials:
         mat = bpy.data.materials[m_idx]
         mat_str += '<Material> %s {\n' % eggSafeName(mat.yabee_name)
-        if TEXTURE_PROCESSOR == 'SIMPLE':
+        if TEXTURE_PROCESSOR in ('SIMPLE', 'RAW'):
             mat_str += '  <Scalar> diffr { %s }\n' % STRF(mat.diffuse_color[0] * mat.diffuse_intensity)
             mat_str += '  <Scalar> diffg { %s }\n' % STRF(mat.diffuse_color[1] * mat.diffuse_intensity)
             mat_str += '  <Scalar> diffb { %s }\n' % STRF(mat.diffuse_color[2] * mat.diffuse_intensity)
