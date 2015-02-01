@@ -1250,7 +1250,10 @@ def apply_modifiers():
         for mod in obj.modifiers:
             if mod and mod.type != 'ARMATURE':
                 bpy.context.scene.objects.active = obj
-                bpy.ops.object.modifier_apply(modifier = mod.name)
+                try:
+                    bpy.ops.object.modifier_apply(modifier = mod.name)
+                except:
+                    print('WARNING: can\'t apply modifier', mod.name)
 
 
 def generate_shadow_uvs():
