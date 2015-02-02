@@ -1134,20 +1134,20 @@ def get_egg_materials_str(object_names=None):
         mat_str += '}\n\n'
     used_textures = {}
     if TEXTURE_PROCESSOR == 'SIMPLE':
-        st = SimpleTextures(bpy.context.selected_objects, 
+        st = SimpleTextures(objects, 
                             EXPORT_UV_IMAGE_AS_TEXTURE, 
                             COPY_TEX_FILES, 
                             FILE_PATH, TEX_PATH)
         used_textures.update(st.get_used_textures())
     elif TEXTURE_PROCESSOR == 'RAW':
-        rt = RawTextures(bpy.context.selected_objects, 
+        rt = RawTextures(objects, 
                          EXPORT_UV_IMAGE_AS_TEXTURE, 
                          COPY_TEX_FILES, 
                          FILE_PATH, TEX_PATH)
         used_textures.update(rt.get_used_textures())
     
     if TEXTURE_PROCESSOR != 'RAW':
-        tb = TextureBaker(bpy.context.selected_objects, FILE_PATH, TEX_PATH)
+        tb = TextureBaker(objects, FILE_PATH, TEX_PATH)
         used_textures.update(tb.bake(BAKE_LAYERS))
         
     for name, params in used_textures.items():
