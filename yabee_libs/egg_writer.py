@@ -667,13 +667,13 @@ class EGGMeshObjectData(EGGBaseObjectData):
                     #if uv_tex.data[face.index].image.source == 'FILE':
                     tex_name = uv_tex.data[face.index].image.yabee_name
                     if tex_name in USED_TEXTURES:
-                        attributes.append('<TRef> { %s }' % tex_name)
+                        attributes.append('<TRef> { %s }' % eggSafeName(tex_name))
             if face.material_index < len(self.obj_ref.data.materials):
                 mat = self.obj_ref.data.materials[face.material_index]
                 for tex in [tex for tex in mat.texture_slots if tex]:
                     tex_name = tex.texture.yabee_name
                     if tex_name in USED_TEXTURES:
-                                attributes.append('<TRef> { %s }' % tex_name)
+                                attributes.append('<TRef> { %s }' % eggSafeName(tex_name))
         
         if TEXTURE_PROCESSOR == 'RAW':
             textures = []
@@ -684,7 +684,7 @@ class EGGMeshObjectData(EGGBaseObjectData):
                     if tex_name in USED_TEXTURES and tex_name not in textures:
                             textures.append(tex_name)
             for tex_name in textures:
-                attributes.append('<TRef> { %s }' % tex_name)
+                attributes.append('<TRef> { %s }' % eggSafeName(tex_name))
         else:
             if self.obj_ref.data.uv_textures:
                 for btype, params in BAKE_LAYERS.items():
