@@ -280,6 +280,9 @@ class RawTextures(SimpleTextures):
 
                             if(tuple(tex.offset) != (0.0, 0.0, 0.0)):
                                 transform.append(('Translate', tex.offset))
+                                
+                            if(tex.use_map_alpha and material.game_settings.alpha_blend == 'CLIP'):
+                                scalars.append(('alpha', 'BINARY'))
     
         return tex_list
 
