@@ -1245,8 +1245,10 @@ def parented_to_armatured():
         obj.select = True
 
 
-def apply_modifiers():
-    for obj in bpy.context.selected_objects:
+def apply_modifiers(obj_list=None):
+    if not obj_list:
+        obj_list = bpy.context.selected_objects
+    for obj in obj_list:
         for mod in obj.modifiers:
             if mod and mod.type != 'ARMATURE':
                 bpy.context.scene.objects.active = obj
@@ -1340,8 +1342,19 @@ def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex,
         old_data[d] = d[:]
     bpy.ops.scene.new(type = 'FULL_COPY')
     try:
+        obj_list = [obj for obj in bpy.context.scene.objects 
+                    if obj.yabee_name in selected_obj]
+        if CALC_TBS == 'BLENDER':
+            for obj in obj_list:
+                for face in obj.data.polygons:
+                    if len(face.vertices) > 4:
+                        obj.modifiers.new('triangulate_for_TBS', 'TRIANGULATE')
+                        print('WARNING:TBS: Triangulate %s to avoid non tris/quads polygons' % obj.yabee_name)
+                        bpy.context.scene.objects.active = obj
+                        bpy.ops.object.modifier_apply(modifier = 'triangulate_for_TBS')
+                        break
         if APPLY_MOD:
-            apply_modifiers()
+            apply_modifiers(obj_list)
         #parented_to_armatured()
         #if MERGE_ACTOR_MESH:
         #    merge_objects()
@@ -1352,11 +1365,6 @@ def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex,
             generate_shadow_uvs()
         gr = Group(None)
         
-        obj_list = [obj for obj in bpy.context.scene.objects 
-                    if obj.yabee_name in selected_obj]
-                    #and not (obj.parent and obj.parent.type == 'ARMATURE' 
-                    #         and obj.parent_bone)]
-                    
         incl_arm = []
         for obj in bpy.context.scene.objects:
             if obj.yabee_name in selected_obj:
@@ -1372,11 +1380,11 @@ def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex,
         #incl_arm = list(incl_arm)[:]
         #print(incl_arm)
         obj_list += incl_arm
-        print('obj list', obj_list)
+        print('Objects for export:', [obj.yabee_name for obj in obj_list])
             
         errors += gr.make_hierarchy_from_list(obj_list)
         if not errors:
-            gr.print_hierarchy()
+            #gr.print_hierarchy()
             gr.update_joints_data()
 
             fdir, fname = os.path.split(os.path.abspath(FILE_PATH))
