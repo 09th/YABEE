@@ -129,6 +129,12 @@ class YABEEProperty(bpy.types.PropertyGroup):
             default=True,
             )
             
+    opt_physics_to_collide = BoolProperty(
+            name="Physics to <Collide>",
+            description="Convert physics parameters to <Collide> entry",
+            default=False,
+            )
+            
     opt_pview = BoolProperty(
             name="Pview",
             description="Run pview after exporting",
@@ -192,6 +198,7 @@ class YABEEProperty(bpy.types.PropertyGroup):
                 layout.row().prop(self, 'opt_copy_tex_files')
             layout.row().prop(self, 'opt_merge_actor')
             layout.row().prop(self, 'opt_apply_modifiers')
+            layout.row().prop(self, 'opt_physics_to_collide')
             layout.row().prop(self, 'opt_pview')
     
     def get_bake_dict(self):
@@ -242,6 +249,7 @@ class YABEEProperty(bpy.types.PropertyGroup):
         self.opt_tex_path = './tex'
         self.opt_merge_actor = True
         self.opt_apply_modifiers = True
+        self.opt_physics_to_collide = False
         self.opt_pview = False
         while self.opt_anim_list.anim_collection[:]:
             bpy.ops.export.egg_anim_remove('INVOKE_DEFAULT')
@@ -360,6 +368,7 @@ class ExportPanda3DEGG(bpy.types.Operator, ExportHelper):
                             sett.get_bake_dict(),
                             sett.opt_merge_actor,
                             sett.opt_apply_modifiers,
+                            sett.opt_physics_to_collide,
                             sett.opt_pview)
         if not errors:
             return {'FINISHED'}

@@ -34,6 +34,24 @@ PVIEW = True
 STRF = lambda x: '%.6f' % x
 USED_MATERIALS = None
 USED_TEXTURES = None
+PHYSICS_TO_COLLIDE = None
+
+COLLISION_BOUNDS = {'BOX':'Polyset', # Avoid using box due to bug
+                    'SPHERE':'Sphere', 
+                    'TRIANGLE_MESH':'Polyset', 
+                    'CAPSULE':'Tube'
+                    }
+
+DEFAULT_COLLISION_BOUNDS = {'NO_COLLISION':'', 
+                            'STATIC':'Polyset', 
+                            'DYNAMIC':'Sphere', 
+                            'RIGID_BODY':'Sphere', 
+                            'SOFT_BODY':'Polyset', 
+                            'OCCLUDE':'Polyset', 
+                            'SENSOR':'Polyset', 
+                            'NAVMESH':'Polyset', 
+                            'CHARACTER':'Tube'
+                            }
 
 class Group:
     """
@@ -163,14 +181,34 @@ class Group:
                 normalized = prop.name.lower().replace('_', '-')
 
                 if normalized in ('collide', 'objecttype'):
-                    vals = ('  ' * level, prop.name, prop.value)
-                    egg_str += '%s<%s> { %s }\n' % vals
+                    if not PHYSICS_TO_COLLIDE:
+                        vals = ('  ' * level, prop.name, prop.value)
+                        egg_str += '%s<%s> { %s }\n' % vals
                 elif normalized in ('collide-mask', 'from-collide-mask', 'into-collide-mask', 'bin', 'draw-order'):
-                    vals = ('  ' * level, prop.name, prop.value)
-                    egg_str += '%s<Scalar> %s { %s }\n' % vals
+                    if not PHYSICS_TO_COLLIDE:
+                        vals = ('  ' * level, prop.name, prop.value)
+                        egg_str += '%s<Scalar> %s { %s }\n' % vals
                 else:
                     vals = ('  ' * level, eggSafeName(prop.name), eggSafeName(prop.value))
                     egg_str += '%s<Tag> %s { %s }\n' % vals
+            
+            if PHYSICS_TO_COLLIDE and self.object.type == 'MESH':
+                flags = ''
+                col_type = ''
+                if not self.object.hide_render:
+                    flags += ' keep'
+                flags += ' descend'
+                
+                if not self.object.game.use_collision_bounds:
+                    col_type = DEFAULT_COLLISION_BOUNDS[self.object.game.physics_type]
+                else:
+                    if self.object.game.collision_bounds_type in COLLISION_BOUNDS:
+                        col_type = COLLISION_BOUNDS[self.object.game.collision_bounds_type]
+                    else:
+                        print('WARNING: unsupported collision bound %s. Drop to %s.' % \
+                               (self.object.game.collision_bounds_type, DEFAULT_COLLISION_BOUNDS[self.object.game.physics_type]))
+                        col_type = COLLISION_BOUNDS[self.object.game.collision_bounds_type]
+                egg_str += '%s<Collide> {%s%s}\n' % ('  ' * level, col_type, flags)
         return egg_str
                 
     def get_full_egg_str(self, level = 0):
@@ -1281,11 +1319,12 @@ def generate_shadow_uvs():
 #-----------------------------------------------------------------------
 def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex, 
               t_path, tbs, tex_processor, b_layers, 
-              m_actor, apply_m, pview, objects=None):
+              m_actor, apply_m, phys2collide, pview, objects=None):
     global FILE_PATH, ANIMATIONS, EXPORT_UV_IMAGE_AS_TEXTURE, \
            COPY_TEX_FILES, TEX_PATH, SEPARATE_ANIM_FILE, ANIM_ONLY, \
            STRF, CALC_TBS, TEXTURE_PROCESSOR, BAKE_LAYERS, \
-           MERGE_ACTOR_MESH, APPLY_MOD, PVIEW, USED_MATERIALS, USED_TEXTURES
+           MERGE_ACTOR_MESH, APPLY_MOD, PVIEW, USED_MATERIALS, \
+           USED_TEXTURES, PHYSICS_TO_COLLIDE
     imp.reload(sys.modules[lib_name + '.texture_processor'])
     imp.reload(sys.modules[lib_name + '.utils'])
     errors = []
@@ -1302,6 +1341,7 @@ def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex,
     BAKE_LAYERS = b_layers
     MERGE_ACTOR_MESH = m_actor
     APPLY_MOD = apply_m
+    PHYSICS_TO_COLLIDE = phys2collide
     PVIEW = pview
     s_acc = '%.6f'
     def str_f(x):
@@ -1460,16 +1500,16 @@ def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex,
 
 def write_out_test(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex, 
               t_path, tbs, tex_processor, b_layers, 
-              m_actor, apply_m, pview):
+              m_actor, apply_m, phys2collide, pview):
     #return write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex, 
     #          t_path, tbs, tex_processor, b_layers, 
     #          m_actor, apply_m, pview)
     import profile
     import pstats
-    wo = "write_out('%s', %s, %s, %s, %s, '%s', %s, '%s', '%s', %s, %s, %s, %s)" % \
+    wo = "write_out('%s', %s, %s, %s, %s, '%s', %s, '%s', '%s', %s, %s, %s, %s, %s)" % \
             (fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex, 
               t_path, tbs, tex_processor, b_layers, 
-              m_actor, apply_m, pview)
+              m_actor, apply_m, phys2collide, pview)
     wo = wo.replace('\\', '\\\\')
     profile.runctx(wo, globals(), {}, 'main_prof')
     stats = pstats.Stats('main_prof')
