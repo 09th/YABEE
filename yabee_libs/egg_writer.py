@@ -1250,7 +1250,7 @@ def apply_modifiers(obj_list=None):
         obj_list = bpy.context.selected_objects
     for obj in obj_list:
         for mod in obj.modifiers:
-            if mod and mod.type != 'ARMATURE':
+            if mod and mod.type != 'ARMATURE' and mod.show_viewport:
                 bpy.context.scene.objects.active = obj
                 try:
                     bpy.ops.object.modifier_apply(modifier = mod.name)
