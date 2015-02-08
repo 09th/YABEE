@@ -933,6 +933,7 @@ class AnimCollector():
         self.obj_list = obj_list
         self.start_f = start_f
         self.stop_f = stop_f
+        if self.start_f == self.stop_f: self.stop_f += 1
         self.framerate = framerate
         self.name = name
         self.bone_groups = {}
@@ -1244,6 +1245,15 @@ def parented_to_armatured():
     for obj in old_selection:
         obj.select = True
 
+def reparenting_to_armature(obj_list):
+    for obj in obj_list:
+        for mod in obj.modifiers:
+            if mod and mod.type == 'ARMATURE' and mod.show_viewport:
+                if obj.parent != mod.object:
+                    print('WARNING:Reparent %s to %s' % (obj.yabee_name, mod.object.yabee_name))
+                    m = Matrix(obj.matrix_world)
+                    obj.parent = mod.object
+                    obj.matrix_world = m
 
 def apply_modifiers(obj_list=None):
     if not obj_list:
@@ -1355,6 +1365,7 @@ def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex,
                         break
         if APPLY_MOD:
             apply_modifiers(obj_list)
+        reparenting_to_armature(obj_list)
         #parented_to_armatured()
         #if MERGE_ACTOR_MESH:
         #    merge_objects()
