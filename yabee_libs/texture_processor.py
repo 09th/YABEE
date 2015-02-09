@@ -56,6 +56,9 @@ class SimpleTextures():
         tex_list = {}
         for obj in self.obj_list:
             if obj.type == 'MESH':
+                use_uv_face_tex = False
+                use_uv_face_tex_alpha = False
+                '''
                 # Texture from UV image
                 if self.uv_img_as_texture:
                     for num, uv in enumerate(obj.data.uv_textures):
@@ -69,21 +72,21 @@ class SimpleTextures():
                                     t_path = bpy.path.abspath(f.image.filepath)
                                     if self.copy_tex:
                                         t_path = save_image(f.image, self.file_path, self.tex_path)
-                                    #tex_list[f.image.name] = {'path': t_path,
-                                    #                          'scalars': [] }
-                                    #tex_list[f.image.name]['scalars'].append(('envtype', 'MODULATE'))
-                                    #if name:
-                                    #    tex_list[f.image.name]['scalars'].append(('uv-name', name))
                                     tex_list[f.image.yabee_name] = {'path': t_path,
                                                               'scalars': [] }
                                     tex_list[f.image.yabee_name]['scalars'].append(('envtype', 'MODULATE'))
                                     if name:
                                         tex_list[f.image.yabee_name]['scalars'].append(('uv-name', name))
-
+                '''
                 # General textures
                 for f in obj.data.polygons:
                     if f.material_index < len(obj.data.materials):
-                        valid_slots = self.get_valid_slots(obj.data.materials[f.material_index].texture_slots)
+                        mat = obj.data.materials[f.material_index]
+                        valid_slots = self.get_valid_slots(mat.texture_slots)
+                        if not valid_slots or mat.use_face_texture:
+                            use_uv_face_tex = True
+                        if mat.use_face_texture_alpha:
+                            use_uv_face_tex_alpha = True
                         alpha_tex = self.get_alpha_slot(valid_slots)
                         alpha_map_assigned = False
 
@@ -198,6 +201,32 @@ class SimpleTextures():
                                                 scalars.append(('blend', 'add'))
                                 #except:
                                 #    print('ERROR: can\'t get texture image on %s.' % tex.texture.name)
+                    else:
+                        use_uv_face_tex = True
+                    
+                    # use uv map image texture as face texture if appropriate flag 
+                    # checked, or material has not valid texture, or object has not material
+                    if use_uv_face_tex:
+                        for num, uv in enumerate(obj.data.uv_textures):
+                            for f in uv.data:
+                                if f.image and f.image.source == 'FILE':
+                                    #if not f.image.name in tex_list:
+                                    tex_name = '%s_%s' % (uv.name, f.image.yabee_name)
+                                    if not tex_name in tex_list:
+                                        name = uv.name
+                                        if num == 0: name = ''
+                                        t_path = bpy.path.abspath(f.image.filepath)
+                                        if self.copy_tex:
+                                            t_path = save_image(f.image, self.file_path, self.tex_path)
+                                        tex_list[tex_name] = {'path': t_path, 'scalars': [] }
+                                        tex_list[tex_name]['scalars'].append(('envtype', 'MODULATE'))
+                                        tex_list[tex_name]['scalars'].append(('minfilter', 'LINEAR_MIPMAP_LINEAR'))
+                                        tex_list[tex_name]['scalars'].append(('magfilter', 'LINEAR_MIPMAP_LINEAR'))
+                                        tex_list[tex_name]['scalars'].append(('wrap', 'REPEAT'))
+                                        if use_uv_face_tex_alpha:
+                                            tex_list[tex_name]['scalars'].append(('alpha', 'BINARY'))
+                                        if name:
+                                            tex_list[tex_name]['scalars'].append(('uv-name', name))
         return tex_list
 
 
@@ -214,14 +243,19 @@ class RawTextures(SimpleTextures):
 
         return False
     
-    
+    '''
     def get_used_textures(self):
         tex_list = {}
         for obj in self.obj_list:
             if obj.type == 'MESH':
+                use_uv_face_tex = False
+                use_uv_face_tex_alpha = False
                 for material in obj.data.materials:
                     valid_slots = self.get_valid_slots(material.texture_slots)
-
+                    if not valid_slots or mat.use_face_texture:
+                        use_uv_face_tex = True
+                    if mat.use_face_texture_alpha:
+                        use_uv_face_tex_alpha = True
                     for tex in valid_slots:
                         scalars = []
                         transform = []
@@ -283,8 +317,35 @@ class RawTextures(SimpleTextures):
                                 
                             if(tex.use_map_alpha and material.game_settings.alpha_blend == 'CLIP'):
                                 scalars.append(('alpha', 'BINARY'))
+                if not obj.data.materials[:]:
+                    use_uv_face_tex = True
+                    
+                # use uv map image texture as face texture if appropriate flag 
+                # checked, or material has not valid texture, or object has not material
+                if use_uv_face_tex:
+                    for num, uv in enumerate(obj.data.uv_textures):
+                        for f in uv.data:
+                            if f.image and f.image.source == 'FILE':
+                                #if not f.image.name in tex_list:
+                                tex_name = '%s_%s' % (uv.name, f.image.yabee_name)
+                                if not tex_name in tex_list:
+                                    name = uv.name
+                                    if num == 0: name = ''
+                                    t_path = bpy.path.abspath(f.image.filepath)
+                                    if self.copy_tex:
+                                        t_path = save_image(f.image, self.file_path, self.tex_path)
+                                    tex_list[tex_name] = {'path': t_path, 'scalars': [] }
+                                    tex_list[tex_name]['scalars'].append(('envtype', 'MODULATE'))
+                                    tex_list[tex_name]['scalars'].append(('minfilter', 'LINEAR_MIPMAP_LINEAR'))
+                                    tex_list[tex_name]['scalars'].append(('magfilter', 'LINEAR_MIPMAP_LINEAR'))
+                                    tex_list[tex_name]['scalars'].append(('wrap', 'REPEAT'))
+                                    if use_uv_face_tex_alpha:
+                                        tex_list[tex_name]['scalars'].append(('alpha', 'BINARY'))
+                                    if name:
+                                        tex_list[tex_name]['scalars'].append(('uv-name', name))
     
         return tex_list
+        '''
 
 
 class TextureBaker():

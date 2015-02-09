@@ -180,9 +180,8 @@ class YABEEProperty(bpy.types.PropertyGroup):
                 self.opt_bake_shadow.draw(box.row(align = True), "Shadow")
             #else:
             #    layout.row().prop(self, 'opt_tex_proc')
-            if self.opt_tex_proc == 'SIMPLE':
-                #layout.row().prop(self, 'opt_export_uv_as_texture')
-                box.row().prop(self, 'opt_export_uv_as_texture')
+            #if self.opt_tex_proc == 'SIMPLE':
+            #    box.row().prop(self, 'opt_export_uv_as_texture')
             if self.opt_copy_tex_files or self.opt_tex_proc == 'BAKE':
                 box = layout.box()
                 if self.opt_tex_proc in ('SIMPLE', 'RAW'):

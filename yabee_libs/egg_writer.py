@@ -661,6 +661,7 @@ class EGGMeshObjectData(EGGBaseObjectData):
         @return: list of polygon's attributes.
         """
         global USED_TEXTURES, TEXTURE_PROCESSOR
+        '''
         if TEXTURE_PROCESSOR == 'SIMPLE':
             if EXPORT_UV_IMAGE_AS_TEXTURE:
                 for uv_tex in self.obj_ref.data.uv_textures:
@@ -674,8 +675,8 @@ class EGGMeshObjectData(EGGBaseObjectData):
                     tex_name = tex.texture.yabee_name
                     if tex_name in USED_TEXTURES:
                                 attributes.append('<TRef> { %s }' % eggSafeName(tex_name))
-        
-        if TEXTURE_PROCESSOR == 'RAW':
+        '''
+        if TEXTURE_PROCESSOR in ('SIMPLE', 'RAW'):
             textures = []
             if face.material_index < len(self.obj_ref.data.materials):
                 mat = self.obj_ref.data.materials[face.material_index]
@@ -683,8 +684,18 @@ class EGGMeshObjectData(EGGBaseObjectData):
                     tex_name = tex.texture.yabee_name
                     if tex_name in USED_TEXTURES and tex_name not in textures:
                             textures.append(tex_name)
+            
+            # use uv map image texture as face texture if appropriate flag 
+            # checked, or material has not valid texture, or object has not material
+            for uv_tex in self.obj_ref.data.uv_textures:
+                if uv_tex.data[face.index].image:
+                    tex_name = '%s_%s' % (uv_tex.name, uv_tex.data[face.index].image.yabee_name)
+                    if tex_name in USED_TEXTURES and tex_name not in textures:
+                        textures.append(tex_name)
+                            
             for tex_name in textures:
                 attributes.append('<TRef> { %s }' % eggSafeName(tex_name))
+        
         else:
             if self.obj_ref.data.uv_textures:
                 for btype, params in BAKE_LAYERS.items():
