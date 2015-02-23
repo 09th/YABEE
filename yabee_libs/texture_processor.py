@@ -36,7 +36,7 @@ class SimpleTextures():
         for tex in slots:
             if(self.is_slot_valid(tex)):
                 valid_slots.append(tex)
-        
+
         return valid_slots
         
     def get_alpha_slot(self, slots):
@@ -142,19 +142,20 @@ class SimpleTextures():
                                         scalars.append(('minfilter', 'LINEAR_MIPMAP_LINEAR'))
                                         scalars.append(('magfilter', 'LINEAR_MIPMAP_LINEAR'))
 
-                                    # Process wrap modes.
-                                    if(tex.texture.extension == 'EXTEND'):
-                                        scalars.append(('wrap', 'CLAMP'))
+                                    if tex.texture.type == 'IMAGE':
+                                        # Process wrap modes.
+                                        if(tex.texture.extension == 'EXTEND'):
+                                            scalars.append(('wrap', 'CLAMP'))
 
-                                    elif(tex.texture.extension in ('CLIP', 'CLIP_CUBE')):
-                                        scalars.append(('wrap', 'BORDER_COLOR'))
-                                        scalars.append(('borderr', '1'))
-                                        scalars.append(('borderg', '1'))
-                                        scalars.append(('borderb', '1'))
-                                        scalars.append(('bordera', '1'))
+                                        elif(tex.texture.extension in ('CLIP', 'CLIP_CUBE')):
+                                            scalars.append(('wrap', 'BORDER_COLOR'))
+                                            scalars.append(('borderr', '1'))
+                                            scalars.append(('borderg', '1'))
+                                            scalars.append(('borderb', '1'))
+                                            scalars.append(('bordera', '1'))
 
-                                    elif(tex.texture.extension in ('REPEAT', 'CHECKER')):
-                                        scalars.append(('wrap', 'REPEAT'))
+                                        elif(tex.texture.extension in ('REPEAT', 'CHECKER')):
+                                            scalars.append(('wrap', 'REPEAT'))
 
                                     # Process coordinate mapping using a matrix.
                                     mappings = (tex.mapping_x, tex.mapping_y, tex.mapping_z)
@@ -236,116 +237,24 @@ class RawTextures(SimpleTextures):
     
     
     def is_slot_valid(self, tex):
-        if tex and tex.texture and tex.texture.type == 'IMAGE' \
-               and tex.texture.image \
-               and tex.texture.image.source == 'FILE':
-            return True
+        if tex and tex.texture:
+            if tex.texture.type == 'IMAGE':
+                if tex.texture.image and tex.texture.image.source == 'FILE':
+                    return True
+            elif tex.texture.type == 'ENVIRONMENT_MAP' \
+              and tex.texture.environment_map.source == 'IMAGE_FILE':
+                # Bug in Blender. When scene copied it lost link to the imagefile with environment map
+                # we'll link it by hand
+                orig_img = bpy.data.textures[tex.texture.yabee_name].image
+                if not tex.texture.image and orig_img and orig_img.source == 'FILE':
+                    tex.texture.image = orig_img
+                    return True
+                elif tex.texture.image.source == 'FILE':
+                    return True
 
         return False
     
-    '''
-    def get_used_textures(self):
-        tex_list = {}
-        for obj in self.obj_list:
-            if obj.type == 'MESH':
-                use_uv_face_tex = False
-                use_uv_face_tex_alpha = False
-                for material in obj.data.materials:
-                    valid_slots = self.get_valid_slots(material.texture_slots)
-                    if not valid_slots or mat.use_face_texture:
-                        use_uv_face_tex = True
-                    if mat.use_face_texture_alpha:
-                        use_uv_face_tex_alpha = True
-                    for tex in valid_slots:
-                        scalars = []
-                        transform = []
-                        if not tex.texture.yabee_name in list(tex_list.keys()):
-                            t_path = tex.texture.image.filepath
-                            if self.copy_tex:
-                                t_path = save_image(tex.texture.image, self.file_path, self.tex_path)
-                                
-                            tex_list[tex.texture.yabee_name] = {'path': t_path,
-                                                                'scalars': scalars, 
-                                                                'transform': transform }
-                            if(tex.texture.use_mipmap):
-                                scalars.append(('minfilter', 'LINEAR_MIPMAP_LINEAR'))
-                                scalars.append(('magfilter', 'LINEAR_MIPMAP_LINEAR'))
 
-                            # Process wrap modes.
-                            if(tex.texture.extension == 'EXTEND'):
-                                scalars.append(('wrap', 'CLAMP'))
-
-                            elif(tex.texture.extension in ('CLIP', 'CLIP_CUBE')):
-                                scalars.append(('wrap', 'BORDER_COLOR'))
-                                scalars.append(('borderr', '1'))
-                                scalars.append(('borderg', '1'))
-                                scalars.append(('borderb', '1'))
-                                scalars.append(('bordera', '1'))
-
-                            elif(tex.texture.extension in ('REPEAT', 'CHECKER')):
-                                scalars.append(('wrap', 'REPEAT'))
-
-                            # Process coordinate mapping using a matrix.
-                            mappings = (tex.mapping_x, tex.mapping_y, tex.mapping_z)
-
-                            if mappings != ('X', 'Y', 'Z'):
-                                matrix = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
-
-                                for col, mapping in enumerate(mappings):
-                                    if mapping == 'Z' and tex.texture_coords == 'UV':
-                                        # Z is not present when using UV coordinates.
-                                        mapping = 'NONE'
-
-                                    if mapping == 'NONE':
-                                        # It seems that Blender sets Z to 0.5 when it is not present.
-                                        matrix[4 * 3 + col] = 0.5
-                                    else:
-                                        row = ord(mapping) - ord('X')
-                                        matrix[4 * row + col] = 1
-
-                                transform.append(('Matrix4', matrix))
-
-                            # Process texture transformations.
-                            if(tuple(tex.scale) != (1.0, 1.0, 1.0)):
-                                # Blender scales from the centre, so shift it before scaling and then shift it back.
-                                transform.append(('Translate', (-0.5, -0.5, -0.5)))
-                                transform.append(('Scale', tex.scale))
-                                transform.append(('Translate', (0.5, 0.5, 0.5)))
-
-                            if(tuple(tex.offset) != (0.0, 0.0, 0.0)):
-                                transform.append(('Translate', tex.offset))
-                                
-                            if(tex.use_map_alpha and material.game_settings.alpha_blend == 'CLIP'):
-                                scalars.append(('alpha', 'BINARY'))
-                if not obj.data.materials[:]:
-                    use_uv_face_tex = True
-                    
-                # use uv map image texture as face texture if appropriate flag 
-                # checked, or material has not valid texture, or object has not material
-                if use_uv_face_tex:
-                    for num, uv in enumerate(obj.data.uv_textures):
-                        for f in uv.data:
-                            if f.image and f.image.source == 'FILE':
-                                #if not f.image.name in tex_list:
-                                tex_name = '%s_%s' % (uv.name, f.image.yabee_name)
-                                if not tex_name in tex_list:
-                                    name = uv.name
-                                    if num == 0: name = ''
-                                    t_path = bpy.path.abspath(f.image.filepath)
-                                    if self.copy_tex:
-                                        t_path = save_image(f.image, self.file_path, self.tex_path)
-                                    tex_list[tex_name] = {'path': t_path, 'scalars': [] }
-                                    tex_list[tex_name]['scalars'].append(('envtype', 'MODULATE'))
-                                    tex_list[tex_name]['scalars'].append(('minfilter', 'LINEAR_MIPMAP_LINEAR'))
-                                    tex_list[tex_name]['scalars'].append(('magfilter', 'LINEAR_MIPMAP_LINEAR'))
-                                    tex_list[tex_name]['scalars'].append(('wrap', 'REPEAT'))
-                                    if use_uv_face_tex_alpha:
-                                        tex_list[tex_name]['scalars'].append(('alpha', 'BINARY'))
-                                    if name:
-                                        tex_list[tex_name]['scalars'].append(('uv-name', name))
-    
-        return tex_list
-        '''
 
 
 class TextureBaker():
