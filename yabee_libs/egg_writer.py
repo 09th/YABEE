@@ -592,13 +592,17 @@ class EGGMeshObjectData(EGGBaseObjectData):
             #no = self.obj_ref.data.loops[idx].normal
             attributes.append('<Normal> { %f %f %f }' % no[:])
         return attributes
-        
-    def collect_vtx_rgba(self, vidx, attributes):
+
+    def collect_vtx_rgba(self, vidx, face, attributes):
         if self.colors_vtx_ref:
-            col = self.colors_vtx_ref[vidx]
-            attributes.append('<RGBA> { %f %f %f 1.0 }' % col[:])
+            # Don't write out vertex colors unless a material actually uses it.
+            if face.material_index < len(self.obj_ref.data.materials):
+                mat = self.obj_ref.data.materials[face.material_index]
+                if mat.use_vertex_color_paint:
+                    col = self.colors_vtx_ref[vidx]
+                    attributes.append('<RGBA> { %f %f %f 1.0 }' % col[:])
         return attributes
-        
+
     def collect_vtx_uv(self, vidx, ividx, attributes):
         """ Add <UV> to the vertex attributes list.
         
@@ -638,7 +642,7 @@ class EGGMeshObjectData(EGGBaseObjectData):
                 xyz(v, attributes)
                 dxyz(v, attributes)
                 normal(v, idx, attributes)
-                rgba(idx, attributes)
+                rgba(idx, f, attributes)
                 uv(v, idx, attributes)
                 str_attr = '\n'.join(attributes)
                 vtx = '\n<Vertex> %i {%s\n}' % (idx, str_attr)
@@ -733,10 +737,18 @@ class EGGMeshObjectData(EGGBaseObjectData):
         #attributes.append('<Normal> {%s %s %s}' % (STRF(no[0]), STRF(no[1]), STRF(no[2])))
         attributes.append('<Normal> {%f %f %f}' % no[:])
         return attributes
-    
+
     def collect_poly_rgba(self, face, attributes):
+        if face.material_index < len(self.obj_ref.data.materials):
+            mat = self.obj_ref.data.materials[face.material_index]
+            if mat.use_shadeless and not mat.use_vertex_color_paint:
+                # If a shadeless material is applied, write the color to the
+                # polygons...  The .egg loader should automatically convert
+                # this to a per-object color in most cases.  This makes
+                # shadeless materials also work when lighting is disabled.
+                attributes.append('<RGBA> {%f %f %f 1}' % tuple(mat.diffuse_color))
         return attributes
-    
+
     def collect_poly_bface(self, face, attributes):
         """ Add <BFace> to the polygon's attributes list.
         
