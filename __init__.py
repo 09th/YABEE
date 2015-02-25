@@ -98,7 +98,13 @@ class YABEEProperty(bpy.types.PropertyGroup):
             description="Copy texture files together with EGG",
             default=True,
             )
-    
+
+    opt_anims_from_actions = BoolProperty(
+            name="All actions as animations",
+            description="Export an animation for every Action",
+            default=False,
+            )
+
     opt_separate_anim_files = BoolProperty(
             name="Separate animation files",
             description="Write an animation data into the separate files",
@@ -143,26 +149,31 @@ class YABEEProperty(bpy.types.PropertyGroup):
         row = layout.row()
         row.operator("export.yabee_reset_defaults", icon="FILE_REFRESH", text="Reset to defaults")
         row.operator("export.yabee_help", icon="URL", text="Help")
+
         layout.row().label('Animation:')
-        row = layout.row()
-        row.template_list("UI_UL_list", "anim_collection",
-                          self.opt_anim_list, 
-                          "anim_collection", 
-                          self.opt_anim_list, 
-                          "active_index", 
-                          rows=2)
-        col = row.column(align=True)
-        col.operator("export.egg_anim_add", icon='ZOOMIN', text="")
-        col.operator("export.egg_anim_remove", icon='ZOOMOUT', text="")
-        sett = self.opt_anim_list
-        if len(sett.anim_collection):
-            p = sett.anim_collection[sett.active_index]
-            layout.row().prop(p, 'name')
-            row = layout.row(align = True)
-            row.prop(p, 'from_frame')
-            row.prop(p, 'to_frame')
-            row.prop(p, 'fps')
+        layout.row().prop(self, 'opt_anims_from_actions')
+        if not self.opt_anims_from_actions:
+            row = layout.row()
+            row.template_list("UI_UL_list", "anim_collection",
+                              self.opt_anim_list,
+                              "anim_collection",
+                              self.opt_anim_list,
+                              "active_index",
+                              rows=2)
+            col = row.column(align=True)
+            col.operator("export.egg_anim_add", icon='ZOOMIN', text="")
+            col.operator("export.egg_anim_remove", icon='ZOOMOUT', text="")
+            sett = self.opt_anim_list
+            if len(sett.anim_collection):
+                p = sett.anim_collection[sett.active_index]
+                layout.row().prop(p, 'name')
+                row = layout.row(align = True)
+                row.prop(p, 'from_frame')
+                row.prop(p, 'to_frame')
+                row.prop(p, 'fps')
+
         layout.separator()
+
         layout.row().label('Options:')
         layout.row().prop(self, 'opt_anim_only')
         layout.row().prop(self, 'opt_separate_anim_files')
@@ -357,6 +368,7 @@ class ExportPanda3DEGG(bpy.types.Operator, ExportHelper):
         sett = context.scene.yabee_settings
         errors = egg_writer.write_out(self.filepath, 
                             sett.opt_anim_list.get_anim_dict(),
+                            sett.opt_anims_from_actions,
                             sett.opt_export_uv_as_texture, 
                             sett.opt_separate_anim_files, 
                             sett.opt_anim_only,

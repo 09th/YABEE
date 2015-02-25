@@ -7,6 +7,7 @@ FILE_PATH = './exp_test/test.egg'
 #: { 'animation_name' : (start_frame, end_frame, frame_rate) }
 ANIMATIONS = {'anim1':(0,10,5), 
               }
+ANIMS_FROM_ACTIONS = False
 
 #: 'True' to interprete an image in the uv layer as the texture
 EXPORT_UV_IMAGE_AS_TEXTURE = False 
@@ -81,7 +82,7 @@ if __name__ == '__main__':
     imp.reload(io_scene_egg.yabee_libs.egg_writer)
     egg_writer = io_scene_egg.yabee_libs.egg_writer
     egg_writer.write_out(FILE_PATH, 
-                        ANIMATIONS,
+                        ANIMATIONS, ANIMS_FROM_ACTIONS,
                         EXPORT_UV_IMAGE_AS_TEXTURE, 
                         SEPARATE_ANIM_FILE, 
                         ANIM_ONLY,

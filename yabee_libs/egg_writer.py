@@ -945,7 +945,7 @@ class AnimCollector():
     convert it to the EGG string.
     """
     
-    def __init__(self, obj_list, start_f, stop_f, framerate, name):
+    def __init__(self, obj_list, start_f, stop_f, framerate, name, action=None):
         """ @param obj_list: list or tuple of the Blender's objects
         for wich needed to collect animation data.
         @param start_f: number of the "from" frame.
@@ -982,6 +982,8 @@ class AnimCollector():
                             self.obj_anim_ref[obj.yabee_name] = {}
                         self.obj_anim_ref[obj.yabee_name]['morph'] = self.collect_morph_anims(obj)
                 elif obj.type == 'ARMATURE':
+                    if action and obj.animation_data:
+                        obj.animation_data.action = action
                     self.bone_groups[obj.yabee_name] = EGGAnimJoint(None)
                     self.bone_groups[obj.yabee_name].make_hierarchy_from_list(obj.data.bones)
                     if obj.yabee_name not in list(self.obj_anim_ref.keys()):
@@ -1341,10 +1343,10 @@ def generate_shadow_uvs():
 #-----------------------------------------------------------------------
 #                           WRITE OUT                                   
 #-----------------------------------------------------------------------
-def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex, 
-              t_path, tbs, tex_processor, b_layers, 
+def write_out(fname, anims, from_actions, uv_img_as_tex, sep_anim, a_only,
+              copy_tex, t_path, tbs, tex_processor, b_layers,
               m_actor, apply_m, pview, objects=None):
-    global FILE_PATH, ANIMATIONS, EXPORT_UV_IMAGE_AS_TEXTURE, \
+    global FILE_PATH, ANIMATIONS, ANIMS_FROM_ACTIONS, EXPORT_UV_IMAGE_AS_TEXTURE, \
            COPY_TEX_FILES, TEX_PATH, SEPARATE_ANIM_FILE, ANIM_ONLY, \
            STRF, CALC_TBS, TEXTURE_PROCESSOR, BAKE_LAYERS, \
            MERGE_ACTOR_MESH, APPLY_MOD, PVIEW, USED_MATERIALS, USED_TEXTURES
@@ -1354,6 +1356,7 @@ def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex,
     # === prepare to write ===
     FILE_PATH = fname
     ANIMATIONS = anims
+    ANIMS_FROM_ACTIONS = from_actions
     EXPORT_UV_IMAGE_AS_TEXTURE = uv_img_as_tex
     SEPARATE_ANIM_FILE = sep_anim
     ANIM_ONLY = a_only
@@ -1463,21 +1466,34 @@ def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex,
                 materials_str, USED_MATERIALS, USED_TEXTURES = get_egg_materials_str(selected_obj)
                 file.write(materials_str)
                 file.write(gr.get_full_egg_str())
+
+            anim_collectors = []
+            if ANIMS_FROM_ACTIONS:
+                # Export an animation for each action.
+                fps = bpy.context.scene.render.fps / bpy.context.scene.render.fps_base
+
+                for action in bpy.data.actions:
+                    frange = action.frame_range
+                    ac = AnimCollector(obj_list, int(frange[0]), int(frange[1]),
+                                       fps, action.name, action)
+                    anim_collectors.append(ac)
+            else:
+                # Export animations named in ANIMATIONS dictionary.
+                for a_name, frames in ANIMATIONS.items():
+                    ac = AnimCollector(obj_list, frames[0], frames[1],
+                                       frames[2], a_name)
+                    anim_collectors.append(ac)
+
             fpa = []
-            for a_name, frames in ANIMATIONS.items():
-                ac = AnimCollector(obj_list, 
-                                    frames[0], 
-                                    frames[1], 
-                                    frames[2], 
-                                    a_name)
+            for ac in anim_collectors:
                 if not SEPARATE_ANIM_FILE:
                     file.write(ac.get_full_egg_str())
                 else:
                     a_path = FILE_PATH
                     if a_path[-4:].upper() == '.EGG':
-                        a_path = a_path[:-4] + '-' + a_name + a_path[-4:]
+                        a_path = a_path[:-4] + '-' + ac.name + a_path[-4:]
                     else:
-                        a_path = a_path + '-' + a_name + '.egg'
+                        a_path = a_path + '-' + ac.name + '.egg'
                     a_egg_str = ac.get_full_egg_str()
                     if len(a_egg_str) > 0:
                         a_file = open(a_path, 'w')
@@ -1485,8 +1501,10 @@ def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex,
                         a_file.write(ac.get_full_egg_str())
                         a_file.close()
                         fpa.append(a_path)
+
             if ((not ANIM_ONLY) or (not SEPARATE_ANIM_FILE)):
                 file.close()
+
             if CALC_TBS == 'PANDA':
                 try:
                     fp = os.path.abspath(FILE_PATH)
@@ -1497,7 +1515,7 @@ def write_out(fname, anims, uv_img_as_tex, sep_anim, a_only, copy_tex,
             if PVIEW:
                 try:
                     fp = os.path.abspath(FILE_PATH)
-                    subprocess.Popen(['pview', fp] + fpa)
+                    subprocess.Popen(['pview', '-i', fp] + fpa)
                 except:
                     print('ERROR: Can\'t execute pview')
     except Exception as exc:
