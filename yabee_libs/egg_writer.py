@@ -422,6 +422,8 @@ class EGGMeshObjectData(EGGBaseObjectData):
         for f in self.obj_ref.data.polygons:
             if f.material_index >= len(obj.data.materials):
                 continue
+            if not obj.data.materials[f.material_index]:
+                continue
             for slot in obj.data.materials[f.material_index].texture_slots:
                 if slot and slot.texture_coords == 'ORCO':
                     need_orco = True
@@ -684,6 +686,8 @@ class EGGMeshObjectData(EGGBaseObjectData):
             textures = []
             if face.material_index < len(self.obj_ref.data.materials):
                 mat = self.obj_ref.data.materials[face.material_index]
+                if not mat:
+                    return attributes
                 for tex in [tex for tex in mat.texture_slots if tex]:
                     tex_name = tex.texture.yabee_name
                     if tex_name in USED_TEXTURES and tex_name not in textures:
@@ -722,6 +726,8 @@ class EGGMeshObjectData(EGGBaseObjectData):
         """
         if face.material_index < len(self.obj_ref.data.materials):
             mat = self.obj_ref.data.materials[face.material_index]
+            if not mat:
+                return attributes
             attributes.append('<MRef> { %s }' % eggSafeName(mat.yabee_name))
         return attributes
     
@@ -741,6 +747,8 @@ class EGGMeshObjectData(EGGBaseObjectData):
     def collect_poly_rgba(self, face, attributes):
         if face.material_index < len(self.obj_ref.data.materials):
             mat = self.obj_ref.data.materials[face.material_index]
+            if not mat:
+                return attributes
             if mat.use_shadeless and not mat.use_vertex_color_paint:
                 # If a shadeless material is applied, write the color to the
                 # polygons...  The .egg loader should automatically convert
@@ -758,6 +766,9 @@ class EGGMeshObjectData(EGGBaseObjectData):
         @return: list of polygon's attributes.
         """
         if face.material_index < len(self.obj_ref.data.materials):
+            if not self.obj_ref.data.materials[face.material_index]:
+                return attributes
+
             if not self.obj_ref.data.materials[face.material_index].game_settings.use_backface_culling:
                 attributes.append('<BFace> { 1 }')
         return attributes
@@ -1111,6 +1122,8 @@ def get_used_materials(objects):
         if obj.type == 'MESH':
             for f in obj.data.polygons:
                 if f.material_index < len(obj.data.materials):
+                    if not obj.data.materials[f.material_index]:
+                        continue
                     m_list.append(obj.data.materials[f.material_index].yabee_name)
     return set(m_list)
 

@@ -82,6 +82,9 @@ class SimpleTextures():
                 for f in obj.data.polygons:
                     if f.material_index < len(obj.data.materials):
                         mat = obj.data.materials[f.material_index]
+                        if not mat:
+                            continue
+
                         valid_slots = self.get_valid_slots(mat.texture_slots)
                         if not valid_slots or mat.use_face_texture:
                             use_uv_face_tex = True
