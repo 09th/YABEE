@@ -35,6 +35,10 @@ STRF = lambda x: '%.6f' % x
 USED_MATERIALS = None
 USED_TEXTURES = None
 
+
+# const used to pack string array into StringProperty
+NAME_SEPARATOR = "\1"
+
 class Group:
     """
     Representation of the EGG <Group> hierarchy structure as the
@@ -684,23 +688,51 @@ class EGGMeshObjectData(EGGBaseObjectData):
         '''
         if TEXTURE_PROCESSOR in ('SIMPLE', 'RAW'):
             textures = []
+            used_textures = {}
+            hadMaterial = False
             if face.material_index < len(self.obj_ref.data.materials):
+                hadMaterial = True
                 mat = self.obj_ref.data.materials[face.material_index]
                 if not mat:
                     return attributes
-                for tex in [tex for tex in mat.texture_slots if tex]:
-                    tex_name = tex.texture.yabee_name
-                    if tex_name in USED_TEXTURES and tex_name not in textures:
-                            textures.append(tex_name)
-            
-            # use uv map image texture as face texture if appropriate flag 
+
+                orig_tex_names = mat.yabee_texture_slots.split(NAME_SEPARATOR)
+                for idx, tex in zip(range(len(mat.texture_slots)), mat.texture_slots):
+                    if not tex:
+                        continue
+                    try:
+                        tex.texture.image
+                    except AttributeError:
+                        continue # no image (dunno why tex.texture has differing types...)
+
+                    tex_name = tex.texture.image.yabee_name
+                    if not tex_name in used_textures:
+                        # look up original texture name before it was copied/renamed
+                        tn = orig_tex_names[idx]
+                        used_textures[tex_name] = tn
+
+            # use uv map image texture as face texture if appropriate flag
             # checked, or material has not valid texture, or object has not material
+            
+            if not hadMaterial:
+                used_textures = USED_TEXTURES
+                
             for uv_tex in self.obj_ref.data.uv_textures:
-                if uv_tex.data[face.index].image:
-                    tex_name = '%s_%s' % (uv_tex.name, uv_tex.data[face.index].image.yabee_name)
-                    if tex_name in USED_TEXTURES and tex_name not in textures:
-                        textures.append(tex_name)
-                            
+                facedata = uv_tex.data[face.index]
+                if facedata.image:
+                    if not hadMaterial:
+                        tex_name = '%s_%s' % (uv_tex.name, uv_tex.data[face.index].image.yabee_name)
+                        if tex_name in used_textures and tex_name not in textures:
+                            textures.append(tex_name)
+                    else:
+                        tex_name = used_textures.get(facedata.image.yabee_name, None) 
+                        if tex_name and tex_name not in textures:
+                            textures.append(tex_name)
+                elif hadMaterial:
+                    for texname in used_textures.values():
+                        if not texname in textures:
+                            textures.append(texname)
+                         
             for tex_name in textures:
                 attributes.append('<TRef> { %s }' % eggSafeName(tex_name))
         
@@ -1394,10 +1426,17 @@ def write_out(fname, anims, from_actions, uv_img_as_tex, sep_anim, a_only,
         selected_obj = [obj.name for obj in bpy.context.selected_objects]
     for obj in bpy.data.objects:
         obj.yabee_name = obj.name
-    for item in (bpy.data.meshes, bpy.data.materials, bpy.data.textures, 
+    for item in (bpy.data.meshes, bpy.data.textures,
                  bpy.data.curves, bpy.data.shape_keys, bpy.data.images):
         for obj in item:
             obj.yabee_name = obj.name
+    for obj in bpy.data.materials:
+        obj.yabee_name = obj.name
+        ts_names = []
+        for tex in obj.texture_slots.values():
+            ts_names.append(tex and tex.name or "")
+        tsmap = NAME_SEPARATOR.join(ts_names)
+        obj.yabee_texture_slots = tsmap
     for arm in bpy.data.armatures:
         arm.yabee_name = arm.name
         for bone in arm.bones:

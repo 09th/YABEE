@@ -421,6 +421,10 @@ def register():
     bpy.types.Object.yabee_name = StringProperty(name="YABEE_Name", default="Unknown")
     bpy.types.Mesh.yabee_name = StringProperty(name="YABEE_Name", default="Unknown")
     bpy.types.Material.yabee_name = StringProperty(name="YABEE_Name", default="Unknown")
+    # Can't directly add property to MaterialTextureSlot ("this type doesn't support IDProperties"),
+    # so this stores original names for each embedded texture slot
+    # in a string like: "Texture\1Texture2\1..." (see NAME_SEPARATOR)
+    bpy.types.Material.yabee_texture_slots = StringProperty(name="YABEE_Texture_Slots", default="Unknown")
     bpy.types.Texture.yabee_name = StringProperty(name="YABEE_Name", default="Unknown")
     bpy.types.Armature.yabee_name = StringProperty(name="YABEE_Name", default="Unknown")
     bpy.types.Curve.yabee_name = StringProperty(name="YABEE_Name", default="Unknown")
