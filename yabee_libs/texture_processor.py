@@ -79,11 +79,13 @@ class SimpleTextures():
                                         tex_list[f.image.yabee_name]['scalars'].append(('uv-name', name))
                 '''
                 # General textures
+                handled = set()
                 for f in obj.data.polygons:
                     if f.material_index < len(obj.data.materials):
                         mat = obj.data.materials[f.material_index]
-                        if not mat:
+                        if not mat or mat in handled:
                             continue
+                        handled.add(mat)
 
                         valid_slots = self.get_valid_slots(mat.texture_slots)
                         if not valid_slots or mat.use_face_texture:
@@ -198,9 +200,9 @@ class SimpleTextures():
                                             scalars.append(('alpha-file', '\"%s\"' % alpha_path))
                                             scalars.append(('alpha-file-channel', '4'))
                                             
-                                            if(obj.data.materials[f.material_index].game_settings.alpha_blend == 'CLIP'):
+                                            if(mat.game_settings.alpha_blend == 'CLIP'):
                                                 scalars.append(('alpha', 'BINARY'))
-                                            elif(obj.data.materials[f.material_index].game_settings.alpha_blend == 'ADD'):
+                                            elif(mat.game_settings.alpha_blend == 'ADD'):
                                                 scalars.append(('blend', 'add'))
                                 #except:
                                 #    print('ERROR: can\'t get texture image on %s.' % tex.texture.name)
