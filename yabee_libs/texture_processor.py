@@ -197,7 +197,7 @@ class SimpleTextures():
                                             alpha_path = alpha_tex.texture.image.filepath
                                             if self.copy_tex:
                                                 alpha_path = save_image(alpha_tex.texture.image, self.file_path, self.tex_path)
-                                            scalars.append(('alpha-file', '\"%s\"' % alpha_path))
+                                            scalars.append(('alpha-file', '\"%s\"' % convertFileNameToPanda(alpha_path) ))
                                             scalars.append(('alpha-file-channel', '4'))
                                             
                                             if(mat.game_settings.alpha_blend == 'CLIP'):
