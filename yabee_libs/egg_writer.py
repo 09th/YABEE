@@ -624,7 +624,7 @@ class EGGMeshObjectData(EGGBaseObjectData):
             tbs = ''
             if self.tangent_layers:
                 tbs = '\n    <Tangent> {%f %f %f}\n    <Binormal> {%f %f %f}' % self.tangent_layers[i][ividx]
-            uv_str = '  <UV> %s {\n    %s %s %s\n  }' % (name, data[ividx][0], data[ividx][1], tbs)
+            uv_str = '  <UV> %s {\n    %f %f %s\n  }' % (name, data[ividx][0], data[ividx][1], tbs)
             attributes.append(uv_str)
 
         return attributes
