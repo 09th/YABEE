@@ -1463,6 +1463,11 @@ def write_out(fname, anims, from_actions, uv_img_as_tex, sep_anim, a_only,
                     if obj.yabee_name in selected_obj]
         if CALC_TBS == 'BLENDER':
             for obj in obj_list:
+
+                if not hasattr(obj.data, "polygons"):
+                    print('WARNING: Skipping non-geometry object:', obj.name)
+                    continue
+
                 for face in obj.data.polygons:
                     if len(face.vertices) > 4:
                         obj.modifiers.new('triangulate_for_TBS', 'TRIANGULATE')
