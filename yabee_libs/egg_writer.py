@@ -687,52 +687,58 @@ class EGGMeshObjectData(EGGBaseObjectData):
                                 attributes.append('<TRef> { %s }' % eggSafeName(tex_name))
         '''
         if TEXTURE_PROCESSOR in ('SIMPLE', 'RAW'):
+
+
+            # Store all texture references here. It is important that this is a list
+            # so the texture order is preserved.
             textures = []
-            used_textures = {}
-            hadMaterial = False
+
+            # Find the material assigned to that polygon:
+            # First, check if that polygon has a material at all
             if face.material_index < len(self.obj_ref.data.materials):
-                hadMaterial = True
-                mat = self.obj_ref.data.materials[face.material_index]
-                if not mat:
-                    return attributes
+                material = self.obj_ref.data.materials[face.material_index]
 
-                orig_tex_names = mat.yabee_texture_slots.split(NAME_SEPARATOR)
-                for idx, tex in zip(range(len(mat.texture_slots)), mat.texture_slots):
-                    if not tex:
-                        continue
-                    try:
-                        tex.texture.image
-                    except AttributeError:
-                        continue # no image (dunno why tex.texture has differing types...)
+                # Check if the material has per-face textures enabled. If per-face textures
+                # are enabled, the material textures are ignored and only the active
+                # face textures are exported. Otherwise the per-face textures are completely
+                # ignored.
+                if material.use_face_texture:
 
-                    tex_name = tex.texture.image.yabee_name
-                    if not tex_name in used_textures:
-                        # look up original texture name before it was copied/renamed
-                        tn = orig_tex_names[idx]
-                        used_textures[tex_name] = tn
+                    # Check all assigned uv textures of that object
+                    for uv_tex in self.obj_ref.data.uv_textures:
 
-            # use uv map image texture as face texture if appropriate flag
-            # checked, or material has not valid texture, or object has not material
-            
-            if not hadMaterial:
-                used_textures = USED_TEXTURES
-                
-            for uv_tex in self.obj_ref.data.uv_textures:
-                facedata = uv_tex.data[face.index]
-                if facedata.image:
-                    if not hadMaterial:
-                        tex_name = '%s_%s' % (uv_tex.name, uv_tex.data[face.index].image.yabee_name)
-                        if tex_name in used_textures and tex_name not in textures:
+                        # Check if the polygon is assigned to that uv-texture
+                        facedata = uv_tex.data[face.index]
+                        if facedata.image:
+
+                            # If the polygon is assigned, store a reference to that texture
+                            tex_name = used_textures.get(facedata.image.yabee_name, None) 
+                            if tex_name and tex_name not in textures:
+                                textures.append(tex_name)
+
+                # Material has no per-face textures enabled
+                else:
+                    
+                    # Look up original texture name before it was copied/renamed
+                    orig_tex_names = material.yabee_texture_slots.split(NAME_SEPARATOR)
+                    
+                    # Just store all texture slots
+                    for index, texture in enumerate(material.texture_slots):
+
+                        # Skip empty slots
+                        if not texture:
+                            continue
+
+                        tex_name = orig_tex_names[index]
+
+                        if tex_name not in textures:
                             textures.append(tex_name)
-                    else:
-                        tex_name = used_textures.get(facedata.image.yabee_name, None) 
-                        if tex_name and tex_name not in textures:
-                            textures.append(tex_name)
-                elif hadMaterial:
-                    for texname in used_textures.values():
-                        if not texname in textures:
-                            textures.append(texname)
-                         
+
+            else:
+                # The object has no material, that means it will get no textures
+                print("WARNING: Object", self.obj_ref.name, "has no material assigned!")
+
+            # Store all textures
             for tex_name in textures:
                 attributes.append('<TRef> { %s }' % eggSafeName(tex_name))
         
@@ -1463,6 +1469,11 @@ def write_out(fname, anims, from_actions, uv_img_as_tex, sep_anim, a_only,
                     if obj.yabee_name in selected_obj]
         if CALC_TBS == 'BLENDER':
             for obj in obj_list:
+
+                if not hasattr(obj.data, "polygons"):
+                    print('WARNING: Skipping non-geometry object:', obj.name)
+                    continue
+
                 for face in obj.data.polygons:
                     if len(face.vertices) > 4:
                         obj.modifiers.new('triangulate_for_TBS', 'TRIANGULATE')

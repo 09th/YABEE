@@ -102,12 +102,13 @@ class SimpleTextures():
                             if tex.texture_coords == 'UV':
                                 if tex.uv_layer:
                                     uv_name = tex.uv_layer
-                                    if not [uv.name for uv in obj.data.uv_textures].index(uv_name):
+                                    if uv_name not in [uv.name for uv in obj.data.uv_textures]:
+                                        print("WARNING: Object has no uv-map:", obj.name)
                                         uv_name = ''
                                 else:
                                     uv_name = '' #obj.data.uv_textures[0].name
 
-                                if uv_name:
+                                if uv_name and uv_name != "UVMap":
                                     scalars.append(('uv-name', uv_name))
 
                             elif tex.texture_coords == 'ORCO':
@@ -232,6 +233,7 @@ class SimpleTextures():
                                             tex_list[tex_name]['scalars'].append(('alpha', 'BINARY'))
                                         if name:
                                             tex_list[tex_name]['scalars'].append(('uv-name', name))
+
         return tex_list
 
 
