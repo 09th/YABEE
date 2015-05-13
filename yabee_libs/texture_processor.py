@@ -108,7 +108,7 @@ class SimpleTextures():
                                 else:
                                     uv_name = '' #obj.data.uv_textures[0].name
 
-                                if uv_name:
+                                if uv_name and uv_name != "UVMap":
                                     scalars.append(('uv-name', uv_name))
 
                             elif tex.texture_coords == 'ORCO':
@@ -233,6 +233,7 @@ class SimpleTextures():
                                             tex_list[tex_name]['scalars'].append(('alpha', 'BINARY'))
                                         if name:
                                             tex_list[tex_name]['scalars'].append(('uv-name', name))
+
         return tex_list
 
 
