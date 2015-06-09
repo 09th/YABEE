@@ -1137,7 +1137,7 @@ class AnimCollector():
                     anim_name = self.name
                 else:
                     anim_name = obj_name
-                if SEPARATE_ANIM_FILE:
+                if SEPARATE_ANIM_FILE or ANIM_ONLY:
                     egg_str += '  <Bundle> %s {\n' % eggSafeName(yabee_obj_name)
                 else:
                     egg_str += '  <Bundle> %s {\n' % eggSafeName(anim_name)
@@ -1550,6 +1550,8 @@ def write_out(fname, anims, from_actions, uv_img_as_tex, sep_anim, a_only,
             fpa = []
             for ac in anim_collectors:
                 if not SEPARATE_ANIM_FILE:
+                    if ANIM_ONLY:
+                        file.write('<CoordinateSystem> { Z-up } \n')
                     file.write(ac.get_full_egg_str())
                 else:
                     a_path = FILE_PATH
