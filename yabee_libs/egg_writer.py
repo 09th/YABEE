@@ -740,7 +740,8 @@ class EGGMeshObjectData(EGGBaseObjectData):
 
             # Store all textures
             for tex_name in textures:
-                attributes.append('<TRef> { %s }' % eggSafeName(tex_name))
+                if tex_name in USED_TEXTURES: # Make sure that  we'll have this texture in header
+                    attributes.append('<TRef> { %s }' % eggSafeName(tex_name))
         
         else:
             if self.obj_ref.data.uv_textures:
