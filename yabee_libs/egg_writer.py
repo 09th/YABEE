@@ -432,9 +432,15 @@ class EGGMeshObjectData(EGGBaseObjectData):
                 if slot and slot.texture_coords == 'ORCO':
                     need_orco = True
                     break
-
         if need_orco:
             self.pre_calc_ORCO()
+        
+        # Store current active UV name
+        self.active_uv = None
+        auv = [uv for uv in obj.data.uv_textures if uv.active]
+        if auv:
+            self.active_uv = auv[0].name
+
 
     #-------------------------------------------------------------------
     #                           AUXILIARY                               
@@ -618,9 +624,9 @@ class EGGMeshObjectData(EGGBaseObjectData):
         
         @return: list of vertex attributes.
         """
-        for i, uv in enumerate(self.uvs_list):
+        for uv in self.uvs_list:
             name, data = uv
-            if i == 0 and name != 'ORCO': name = ''
+            if name == self.active_uv and name != 'ORCO': name = ''
             tbs = ''
             if self.tangent_layers:
                 tbs = '\n    <Tangent> {%f %f %f}\n    <Binormal> {%f %f %f}' % self.tangent_layers[i][ividx]
