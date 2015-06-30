@@ -718,11 +718,9 @@ class EGGMeshObjectData(EGGBaseObjectData):
                         if facedata.image:
 
                             # If the polygon is assigned, store a reference to that texture
-                            #tex_name = used_textures.get(facedata.image.yabee_name, None) 
-                            #if tex_name and tex_name not in textures:
-                            if facedata.image.yabee_name in USED_TEXTURES \
-                              and facedata.image.yabee_name not in textures:
-                                textures.append(facedata.image.yabee_name)
+                            tex_name = '%s_%s' % (uv_tex.name, facedata.image.yabee_name)
+                            if tex_name in USED_TEXTURES and tex_name not in textures:
+                                textures.append(tex_name)
 
                 # Material has no per-face textures enabled
                 else:
