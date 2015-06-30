@@ -579,8 +579,8 @@ class EGGMeshObjectData(EGGBaseObjectData):
                 co = key.data[vidx].co * self.obj_ref.matrix_world - \
                      vtx.co * self.obj_ref.matrix_world
                 if co.length > 0.000001:
-                    attributes.append('<Dxyz> "%s" { %f %f %f }\n' % \
-                                      (key.name, co[0], co[1], co[2]))
+                    attributes.append('<Dxyz> %s { %f %f %f }\n' % \
+                                      (eggSafeName(key.name), co[0], co[1], co[2]))
         return attributes
         
     def collect_vtx_normal(self, v, idx, attributes):
@@ -624,7 +624,7 @@ class EGGMeshObjectData(EGGBaseObjectData):
             tbs = ''
             if self.tangent_layers:
                 tbs = '\n    <Tangent> {%f %f %f}\n    <Binormal> {%f %f %f}' % self.tangent_layers[i][ividx]
-            uv_str = '  <UV> %s {\n    %f %f %s\n  }' % (name, data[ividx][0], data[ividx][1], tbs)
+            uv_str = '  <UV> %s {\n    %f %f %s\n  }' % (eggSafeName(name), data[ividx][0], data[ividx][1], tbs)
             attributes.append(uv_str)
 
         return attributes
