@@ -45,6 +45,13 @@ class SimpleTextures():
                 return tex
         return None
         
+    def get_active_uv_name(self, obj):
+        auv = [uv for uv in obj.data.uv_textures if uv.active]
+        if auv:
+            return auv[0].name
+        else:
+            return ''
+        
     def get_used_textures(self):
         """ Collect images from the UV images and Material texture slots 
         tex_list structure:
@@ -108,7 +115,7 @@ class SimpleTextures():
                                 else:
                                     uv_name = '' #obj.data.uv_textures[0].name
 
-                                if uv_name and uv_name != "UVMap":
+                                if uv_name and uv_name != self.get_active_uv_name(obj):
                                     scalars.append(('uv-name', uv_name))
 
                             elif tex.texture_coords == 'ORCO':
