@@ -172,6 +172,9 @@ class Group:
                 elif normalized in ('collide-mask', 'from-collide-mask', 'into-collide-mask', 'bin', 'draw-order'):
                     vals = ('  ' * level, prop.name, prop.value)
                     egg_str += '%s<Scalar> %s { %s }\n' % vals
+                elif normalized == 'file' and self.object.type == 'EMPTY':
+                    vals = ('  ' * level, prop.value)
+                    egg_str += '%s<Instance> { <File> { %s } }\n' % vals
                 else:
                     vals = ('  ' * level, eggSafeName(prop.name), eggSafeName(prop.value))
                     egg_str += '%s<Tag> %s { %s }\n' % vals
