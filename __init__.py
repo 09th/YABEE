@@ -141,6 +141,12 @@ class YABEEProperty(bpy.types.PropertyGroup):
             default=False,
             )
 
+    opt_export_pbs = BoolProperty(
+            name="Export PBS",
+            description="Export Physically Based Properties, requires the BAM Exporter",
+            default=False
+        )
+
     opt_anim_list = PointerProperty(type=EGGAnimList)
 
     first_run = BoolProperty(default = True)
@@ -204,6 +210,8 @@ class YABEEProperty(bpy.types.PropertyGroup):
             layout.row().prop(self, 'opt_apply_modifiers')
             layout.row().prop(self, 'opt_pview')
 
+            layout.row().prop(self, 'opt_export_pbs')
+
     def get_bake_dict(self):
         d = {}
         opts = ((self.opt_bake_diffuse, 'diffuse'),
@@ -261,6 +269,7 @@ class YABEEProperty(bpy.types.PropertyGroup):
         self.opt_merge_actor = True
         self.opt_apply_modifiers = True
         self.opt_pview = False
+        self.opt_export_pbs = False
         while self.opt_anim_list.anim_collection[:]:
             bpy.ops.export.egg_anim_remove('INVOKE_DEFAULT')
         self.first_run = False
@@ -379,7 +388,8 @@ class ExportPanda3DEGG(bpy.types.Operator, ExportHelper):
                             sett.get_bake_dict(),
                             sett.opt_merge_actor,
                             sett.opt_apply_modifiers,
-                            sett.opt_pview)
+                            sett.opt_pview,
+                            sett.opt_export_pbs)
         if not errors:
             return {'FINISHED'}
         else:

@@ -31,6 +31,7 @@ BAKE_LAYERS = None
 MERGE_ACTOR_MESH = None
 APPLY_MOD = None
 PVIEW = True
+EXPORT_PBS = False
 STRF = lambda x: '%.6f' % x
 USED_MATERIALS = None
 USED_TEXTURES = None
@@ -1197,55 +1198,76 @@ def get_egg_materials_str(object_names=None):
         mat = bpy.data.materials[m_idx]
         mat_str += '<Material> %s {\n' % eggSafeName(mat.yabee_name)
 
-        if not mat.use_shadeless:
-            if mat.use_vertex_color_paint:
-                # Not writing a diffuse makes Panda take the diffuse color
-                # from the vertex colors, as with this option in Blender.
-                # (This sadly doesn't work in combination with 'emit'.)
-                pass
-            elif TEXTURE_PROCESSOR in ('SIMPLE', 'RAW'):
-                mat_str += '  <Scalar> diffr { %s }\n' % STRF(mat.diffuse_color[0] * mat.diffuse_intensity)
-                mat_str += '  <Scalar> diffg { %s }\n' % STRF(mat.diffuse_color[1] * mat.diffuse_intensity)
-                mat_str += '  <Scalar> diffb { %s }\n' % STRF(mat.diffuse_color[2] * mat.diffuse_intensity)
-                if mat.alpha != 1.0:
-                    mat_str += '  <Scalar> diffa { %s }\n' % STRF(mat.alpha)
-            elif TEXTURE_PROCESSOR == 'BAKE':
-                mat_str += '  <Scalar> diffr { 1.0 }\n'
-                mat_str += '  <Scalar> diffg { 1.0 }\n'
-                mat_str += '  <Scalar> diffb { 1.0 }\n'
+        if EXPORT_PBS and hasattr(mat, "pbepbs"):
+            # Physically based shading panel from the Panda3D BAM Exporter
+            pbs = mat.pbepbs
 
-            mat_str += '  <Scalar> specr { %s }\n' % STRF(mat.specular_color[0] * mat.specular_intensity)
-            mat_str += '  <Scalar> specg { %s }\n' % STRF(mat.specular_color[1] * mat.specular_intensity)
-            mat_str += '  <Scalar> specb { %s }\n' % STRF(mat.specular_color[2] * mat.specular_intensity)
-            if mat.specular_alpha != 1.0:
-                mat_str += '  <Scalar> speca { %s }\n' % STRF(mat.specular_alpha)
-            mat_str += '  <Scalar> shininess { %s }\n' % (mat.specular_hardness / 512 * 128)
-            mat_str += '  <Scalar> ambr { %s }\n' % STRF(mat.ambient)
-            mat_str += '  <Scalar> ambg { %s }\n' % STRF(mat.ambient)
-            mat_str += '  <Scalar> ambb { %s }\n' % STRF(mat.ambient)
-            mat_str += '  <Scalar> emitr { %s }\n' % STRF(mat.diffuse_color[0] * mat.emit)
-            mat_str += '  <Scalar> emitg { %s }\n' % STRF(mat.diffuse_color[1] * mat.emit)
-            mat_str += '  <Scalar> emitb { %s }\n' % STRF(mat.diffuse_color[2] * mat.emit)
+            mat_str += '  <Scalar> roughness { %s }\n' % STRF(pbs.roughness)
+            mat_str += '  <Scalar> metallic { %s }\n' % ("1" if pbs.metallic else "0")
+            mat_str += '  <Scalar> ior { %s }\n' % STRF(pbs.ior)
+
+            mat_str += '  <Scalar> baser { %s }\n' % STRF(mat.diffuse_color[0])
+            mat_str += '  <Scalar> baseg { %s }\n' % STRF(mat.diffuse_color[1])
+            mat_str += '  <Scalar> baseb { %s }\n' % STRF(mat.diffuse_color[2])
+
+            if mat.alpha != 1.0:
+                mat_str += '  <Scalar> basea { %s }\n' % STRF(mat.alpha)
+
+            mat_str += '  <Scalar> emitr { %s }\n' % STRF(pbs.normal_strength)
+            mat_str += '  <Scalar> emitg { %s }\n' % STRF(0.0)
+            mat_str += '  <Scalar> emitb { %s }\n' % STRF(pbs.translucency)
+            mat_str += '  <Scalar> emita { %s }\n' % STRF(pbs.emissive_factor)
+
         else:
-            # In Blender's 'Shadeless' mode, all material attributes and
-            # lighting are disabled and only the diffuse color is used.
-            # .egg doesn't have a notion of a 'Shadeless' material, but we
-            # can emulate it with a material that only has an 'emit' color.
-            if mat.use_vertex_color_paint:
-                # ...except Panda doesn't support assigning the vertex colors
-                # to the 'emit' channel of the material.  Ugh!  Just write
-                # an empty material until this is supported in Panda.
-                pass
+            if not mat.use_shadeless:
+                if mat.use_vertex_color_paint:
+                    # Not writing a diffuse makes Panda take the diffuse color
+                    # from the vertex colors, as with this option in Blender.
+                    # (This sadly doesn't work in combination with 'emit'.)
+                    pass
+                elif TEXTURE_PROCESSOR in ('SIMPLE', 'RAW'):
+                    mat_str += '  <Scalar> diffr { %s }\n' % STRF(mat.diffuse_color[0] * mat.diffuse_intensity)
+                    mat_str += '  <Scalar> diffg { %s }\n' % STRF(mat.diffuse_color[1] * mat.diffuse_intensity)
+                    mat_str += '  <Scalar> diffb { %s }\n' % STRF(mat.diffuse_color[2] * mat.diffuse_intensity)
+                    if mat.alpha != 1.0:
+                        mat_str += '  <Scalar> diffa { %s }\n' % STRF(mat.alpha)
+                elif TEXTURE_PROCESSOR == 'BAKE':
+                    mat_str += '  <Scalar> diffr { 1.0 }\n'
+                    mat_str += '  <Scalar> diffg { 1.0 }\n'
+                    mat_str += '  <Scalar> diffb { 1.0 }\n'
+
+                mat_str += '  <Scalar> specr { %s }\n' % STRF(mat.specular_color[0] * mat.specular_intensity)
+                mat_str += '  <Scalar> specg { %s }\n' % STRF(mat.specular_color[1] * mat.specular_intensity)
+                mat_str += '  <Scalar> specb { %s }\n' % STRF(mat.specular_color[2] * mat.specular_intensity)
+                if mat.specular_alpha != 1.0:
+                    mat_str += '  <Scalar> speca { %s }\n' % STRF(mat.specular_alpha)
+                mat_str += '  <Scalar> shininess { %s }\n' % (mat.specular_hardness / 512 * 128)
+                mat_str += '  <Scalar> ambr { %s }\n' % STRF(mat.ambient)
+                mat_str += '  <Scalar> ambg { %s }\n' % STRF(mat.ambient)
+                mat_str += '  <Scalar> ambb { %s }\n' % STRF(mat.ambient)
+                mat_str += '  <Scalar> emitr { %s }\n' % STRF(mat.diffuse_color[0] * mat.emit)
+                mat_str += '  <Scalar> emitg { %s }\n' % STRF(mat.diffuse_color[1] * mat.emit)
+                mat_str += '  <Scalar> emitb { %s }\n' % STRF(mat.diffuse_color[2] * mat.emit)
             else:
-                mat_str += '  <Scalar> diffr { 0 }\n'
-                mat_str += '  <Scalar> diffg { 0 }\n'
-                mat_str += '  <Scalar> diffb { 0 }\n'
-                mat_str += '  <Scalar> ambr { 0 }\n'
-                mat_str += '  <Scalar> ambg { 0 }\n'
-                mat_str += '  <Scalar> ambb { 0 }\n'
-                mat_str += '  <Scalar> emitr { %s }\n' % STRF(mat.diffuse_color[0])
-                mat_str += '  <Scalar> emitg { %s }\n' % STRF(mat.diffuse_color[1])
-                mat_str += '  <Scalar> emitb { %s }\n' % STRF(mat.diffuse_color[2])
+                # In Blender's 'Shadeless' mode, all material attributes and
+                # lighting are disabled and only the diffuse color is used.
+                # .egg doesn't have a notion of a 'Shadeless' material, but we
+                # can emulate it with a material that only has an 'emit' color.
+                if mat.use_vertex_color_paint:
+                    # ...except Panda doesn't support assigning the vertex colors
+                    # to the 'emit' channel of the material.  Ugh!  Just write
+                    # an empty material until this is supported in Panda.
+                    pass
+                else:
+                    mat_str += '  <Scalar> diffr { 0 }\n'
+                    mat_str += '  <Scalar> diffg { 0 }\n'
+                    mat_str += '  <Scalar> diffb { 0 }\n'
+                    mat_str += '  <Scalar> ambr { 0 }\n'
+                    mat_str += '  <Scalar> ambg { 0 }\n'
+                    mat_str += '  <Scalar> ambb { 0 }\n'
+                    mat_str += '  <Scalar> emitr { %s }\n' % STRF(mat.diffuse_color[0])
+                    mat_str += '  <Scalar> emitg { %s }\n' % STRF(mat.diffuse_color[1])
+                    mat_str += '  <Scalar> emitb { %s }\n' % STRF(mat.diffuse_color[2])
 
         mat_str += '}\n\n'
     used_textures = {}
@@ -1406,11 +1428,12 @@ def generate_shadow_uvs():
 #-----------------------------------------------------------------------
 def write_out(fname, anims, from_actions, uv_img_as_tex, sep_anim, a_only,
               copy_tex, t_path, tbs, tex_processor, b_layers,
-              m_actor, apply_m, pview, objects=None):
+              m_actor, apply_m, pview, export_pbs, objects=None):
     global FILE_PATH, ANIMATIONS, ANIMS_FROM_ACTIONS, EXPORT_UV_IMAGE_AS_TEXTURE, \
            COPY_TEX_FILES, TEX_PATH, SEPARATE_ANIM_FILE, ANIM_ONLY, \
            STRF, CALC_TBS, TEXTURE_PROCESSOR, BAKE_LAYERS, \
-           MERGE_ACTOR_MESH, APPLY_MOD, PVIEW, USED_MATERIALS, USED_TEXTURES
+           MERGE_ACTOR_MESH, APPLY_MOD, PVIEW, USED_MATERIALS, USED_TEXTURES, \
+           EXPORT_PBS
     imp.reload(sys.modules[lib_name + '.texture_processor'])
     imp.reload(sys.modules[lib_name + '.utils'])
     errors = []
@@ -1429,6 +1452,7 @@ def write_out(fname, anims, from_actions, uv_img_as_tex, sep_anim, a_only,
     MERGE_ACTOR_MESH = m_actor
     APPLY_MOD = apply_m
     PVIEW = pview
+    EXPORT_PBS = export_pbs
     s_acc = '%.6f'
     def str_f(x):
         return s_acc % x
