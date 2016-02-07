@@ -1,4 +1,4 @@
-""" 
+"""
     Part of the YABEE rev 12.1
 """
 import bpy, os, sys, shutil
@@ -15,7 +15,7 @@ def convertFileNameToPanda(filename):
 def save_image(img, file_path, text_path):
     if img.filepath:
         oldpath = bpy.path.abspath(img.filepath)
-        old_dir, old_f = os.path.split(convertFileNameToPanda(oldpath))       
+        old_dir, old_f = os.path.split(convertFileNameToPanda(oldpath))
         f_names = [s.lower() for s in old_f.split('.')]
         if not f_names[-1] in ('jpg', 'png', 'tga', 'tiff', 'dds', 'bmp') and img.is_dirty:
             old_f += ('.' + bpy.context.scene.render.image_settings.file_format.lower())
@@ -60,9 +60,9 @@ def get_active_uv(obj):
         return None
 
 def eggSafeName(s):
-    """ (Get from Chicken) Function that converts names into something 
-    suitable for the egg file format - simply puts " around names that 
-    contain spaces and prunes bad characters, replacing them with an 
+    """ (Get from Chicken) Function that converts names into something
+    suitable for the egg file format - simply puts " around names that
+    contain spaces and prunes bad characters, replacing them with an
     underscore.
     """
     s = str(s).replace('"','_') # Sure there are more bad characters, but this will do for now.

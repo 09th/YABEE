@@ -15,14 +15,14 @@ BAKE_TYPES = {'diffuse': ('TEXTURE', 'MODULATE'),
 
 
 class SimpleTextures():
-    
+
     def __init__(self, obj_list, uv_img_as_texture, copy_tex, file_path, tex_path):
         self.obj_list = obj_list[:]
         self.uv_img_as_texture = uv_img_as_texture
         self.copy_tex = copy_tex
         self.file_path = file_path
         self.tex_path = tex_path
-        
+
     def is_slot_valid(self, tex):
         if ((tex) and (not tex.texture.use_nodes)):
             if tex.texture_coords in ('UV', 'GLOBAL', 'ORCO'):
@@ -30,30 +30,30 @@ class SimpleTextures():
                     return True
 
         return False
-        
+
     def get_valid_slots(self, slots):
         valid_slots = []
         for tex in slots:
             if(self.is_slot_valid(tex)):
                 valid_slots.append(tex)
-        
+
         return valid_slots
-        
+
     def get_alpha_slot(self, slots):
         for tex in slots:
-            if(tex.use_map_alpha): 
+            if(tex.use_map_alpha):
                 return tex
         return None
-        
+
     def get_active_uv_name(self, obj):
         auv = [uv for uv in obj.data.uv_textures if uv.active]
         if auv:
             return auv[0].name
         else:
             return ''
-        
+
     def get_used_textures(self):
-        """ Collect images from the UV images and Material texture slots 
+        """ Collect images from the UV images and Material texture slots
         tex_list structure:
             image_name: { 'scalars': [(name, val), (name, val), ...],
                           'path': 'path/to/texture',
@@ -198,7 +198,7 @@ class SimpleTextures():
 
                                     if(tuple(tex.offset) != (0.0, 0.0, 0.0)):
                                         transform.append(('Translate', tex.offset))
-                                    
+
                                     if(envtype == 'MODULATE'):
                                         if(alpha_tex and not alpha_map_assigned):
                                             alpha_map_assigned = True
@@ -207,7 +207,7 @@ class SimpleTextures():
                                                 alpha_path = save_image(alpha_tex.texture.image, self.file_path, self.tex_path)
                                             scalars.append(('alpha-file', '\"%s\"' % convertFileNameToPanda(alpha_path) ))
                                             scalars.append(('alpha-file-channel', '4'))
-                                            
+
                                             if(mat.game_settings.alpha_blend == 'CLIP'):
                                                 scalars.append(('alpha', 'BINARY'))
                                             elif(mat.game_settings.alpha_blend == 'ADD'):
@@ -216,8 +216,8 @@ class SimpleTextures():
                                 #    print('ERROR: can\'t get texture image on %s.' % tex.texture.name)
                     else:
                         use_uv_face_tex = True
-                    
-                    # use uv map image texture as face texture if appropriate flag 
+
+                    # use uv map image texture as face texture if appropriate flag
                     # checked, or material has not valid texture, or object has not material
                     if use_uv_face_tex:
                         for num, uv in enumerate(obj.data.uv_textures):
@@ -246,8 +246,8 @@ class SimpleTextures():
 
 
 class RawTextures(SimpleTextures):
-    
-    
+
+
     def is_slot_valid(self, tex):
         if tex and tex.texture and tex.texture.type == 'IMAGE' \
                and tex.texture.image \
@@ -255,7 +255,7 @@ class RawTextures(SimpleTextures):
             return True
 
         return False
-    
+
     '''
     def get_used_textures(self):
         tex_list = {}
@@ -276,9 +276,9 @@ class RawTextures(SimpleTextures):
                             t_path = tex.texture.image.filepath
                             if self.copy_tex:
                                 t_path = save_image(tex.texture.image, self.file_path, self.tex_path)
-                                
+
                             tex_list[tex.texture.yabee_name] = {'path': t_path,
-                                                                'scalars': scalars, 
+                                                                'scalars': scalars,
                                                                 'transform': transform }
                             if(tex.texture.use_mipmap):
                                 scalars.append(('minfilter', 'LINEAR_MIPMAP_LINEAR'))
@@ -327,13 +327,13 @@ class RawTextures(SimpleTextures):
 
                             if(tuple(tex.offset) != (0.0, 0.0, 0.0)):
                                 transform.append(('Translate', tex.offset))
-                                
+
                             if(tex.use_map_alpha and material.game_settings.alpha_blend == 'CLIP'):
                                 scalars.append(('alpha', 'BINARY'))
                 if not obj.data.materials[:]:
                     use_uv_face_tex = True
-                    
-                # use uv map image texture as face texture if appropriate flag 
+
+                # use uv map image texture as face texture if appropriate flag
                 # checked, or material has not valid texture, or object has not material
                 if use_uv_face_tex:
                     for num, uv in enumerate(obj.data.uv_textures):
@@ -356,27 +356,27 @@ class RawTextures(SimpleTextures):
                                         tex_list[tex_name]['scalars'].append(('alpha', 'BINARY'))
                                     if name:
                                         tex_list[tex_name]['scalars'].append(('uv-name', name))
-    
+
         return tex_list
         '''
 
 
 class TextureBaker():
-    
+
     def __init__(self, obj_list, file_path, tex_path):
         self.saved_objs = {}
         self.rendered_images = {}
         self.obj_list = obj_list[:]
         self.file_path = file_path
         self.tex_path = tex_path
-        
+
     def get_active_uv(self, obj):
         auv = [uv for uv in obj.data.uv_textures if uv.active]
         if auv:
             return auv[0]
         else:
             return None
-        
+
     def _save_obj_props(self, obj):
         props = {'uvs':[], 'textures':{}, 'active_uv': None}
         active_uv = self.get_active_uv(obj)
@@ -386,7 +386,7 @@ class TextureBaker():
                 #props['uvs'].append((uvd.use_image, uvd.image))
                 props['uvs'].append(uvd.image)
         self.saved_objs[obj.name] = props
-        
+
     def _restore_obj_props(self, obj):
         if obj.name in self.saved_objs.keys():
             props = self.saved_objs[obj.name]
@@ -419,33 +419,33 @@ class TextureBaker():
                     print('ERROR: %s have not active UV layer' % obj.name)
                     return None
         return assigned_data
-        
+
     def _clear_images(self):
         for iname in self.rendered_images.values():
             img = bpy.data.images[iname]
             img.user_clear()
             bpy.data.images.remove(img)
         self.rendred_images = []
-        
+
     def _save_rendered(self, spath):
         for oname, iname in self.rendered_images.items():
             img = bpy.data.images[iname]
             img.save_render(spath + iname + '.' + bpy.context.scene.render.file_format.lower())
-            
+
     def _save_images(self):
         paths = {}
         for oname, iname in self.rendered_images.items():
             img = bpy.data.images[iname]
             paths[iname] = save_image(img, self.file_path, self.tex_path)
         return paths
-        
+
     def _select(self, obj):
         obj.select = True
-        
+
     def _deselect(self, obj):
         obj.select = False
 
-               
+
     def bake(self, bake_layers):
         tex_list = {}
         for btype, params in bake_layers.items():
@@ -510,14 +510,14 @@ class TextureBaker():
                 else:
                     print('WARNING: unknown bake layer "%s"' % btype)
         return tex_list
-        
+
 
 
 
 
 if __name__ == '__main__':
     import os, sys
-    
+
     def convertFileNameToPanda(filename):
       """ (Get from Chicken) Converts Blender filenames to Panda 3D filenames.
       """
@@ -525,7 +525,7 @@ if __name__ == '__main__':
       if os.name == 'nt' and path.find(':') != -1:
         path = '/'+ path[0].lower() + path[2:]
       return path
-      
+
     def save_image(img, file_path, text_path):
         oldpath = bpy.path.abspath(img.filepath)
         old_dir, old_f = os.path.split(convertFileNameToPanda(oldpath))
@@ -557,8 +557,8 @@ if __name__ == '__main__':
                     img.save()
                     img.filepath == oldpath
         return rel_path
-        
-        
+
+
     tb = TextureBaker(bpy.context.selected_objects,'./exp_test/test.egg', './tex')
     print(tb.bake())
     st = SimpleTextures(bpy.context.selected_objects, False, False, './exp_test/test.egg', './tex')
