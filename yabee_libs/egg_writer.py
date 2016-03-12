@@ -1493,7 +1493,7 @@ def write_out(fname, anims, from_actions, uv_img_as_tex, sep_anim, a_only,
               bpy.data.images, bpy.data.lamps, bpy.data.meshes,
               bpy.data.metaballs, bpy.data.movieclips,
               bpy.data.node_groups, bpy.data.particles, bpy.data.screens,
-              bpy.data.scripts, bpy.data.shape_keys, bpy.data.sounds,
+              bpy.data.shape_keys, bpy.data.sounds,
               bpy.data.speakers, bpy.data.texts, bpy.data.window_managers,
               bpy.data.worlds, bpy.data.grease_pencil):
         old_data[d] = d[:]
