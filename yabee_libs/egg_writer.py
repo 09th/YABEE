@@ -628,7 +628,7 @@ class EGGMeshObjectData(EGGBaseObjectData):
 
         @return: list of vertex attributes.
         """
-        for uv in self.uvs_list:
+        for i, uv in enumerate(self.uvs_list):
             name, data = uv
             if name == self.active_uv and name != 'ORCO': name = ''
             tbs = ''
