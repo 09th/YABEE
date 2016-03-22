@@ -981,9 +981,9 @@ class EGGAnimJoint(Group):
             for i in range(len(bone_data['r'])):
                 egg_str += '%s      %s %s %s %s %s %s %s %s %s\n' % (
                                                     '  ' * level,
-                                                    STRF(1.0),
-                                                    STRF(1.0),
-                                                    STRF(1.0),
+                                                    STRF(bone_data['i'][i]),
+                                                    STRF(bone_data['j'][i]),
+                                                    STRF(bone_data['k'][i]),
                                                     STRF(bone_data['p'][i]),
                                                     STRF(bone_data['r'][i]),
                                                     STRF(bone_data['h'][i]),
@@ -1091,6 +1091,10 @@ class AnimCollector():
                 else:
                     matrix = arm.matrix_world * bone.matrix
 
+                i, j, k = matrix.to_scale()
+                anim_dict[bone.yabee_name]['i'].append(i)
+                anim_dict[bone.yabee_name]['j'].append(j)
+                anim_dict[bone.yabee_name]['k'].append(k)
                 p, r, h = matrix.to_euler()
                 anim_dict[bone.yabee_name]['p'].append(p/pi*180)
                 anim_dict[bone.yabee_name]['r'].append(r/pi*180)
