@@ -1611,7 +1611,7 @@ def write_out(fname, anims, from_actions, uv_img_as_tex, sep_anim, a_only,
             if CALC_TBS == 'PANDA':
                 try:
                     fp = os.path.abspath(FILE_PATH)
-                    for line in os.popen('egg-trans -tbnall -o "%s" "%s"' % (fp, fp)).readlines():
+                    for line in os.popen('egg-trans -tbnall -ps keep -o "%s" "%s"' % (fp, fp)).readlines():
                         print(line)
                 except:
                     print('ERROR: Can\'t calculate TBS through panda\'s egg-trans')
