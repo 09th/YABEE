@@ -9,5 +9,5 @@ Exporting:
 - Materials and textures (Partially)
 - Armature (skeleton) animation
 - ShapeKeys (morph) animation
-- <Tag> and collision otions export through Blender's "Game logic" -> "properties"
+- <Tag> and collision options export through Blender's "Game logic" -> "properties"
 - Non cyclic NURBS Curves
