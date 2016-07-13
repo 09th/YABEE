@@ -1570,7 +1570,8 @@ def write_out(fname, anims, from_actions, uv_img_as_tex, sep_anim, a_only,
                 bpy.ops.object.modifier_add(type='DATA_TRANSFER')
                 bpy.context.object.modifiers["DataTransfer"].object = old
                 bpy.context.object.modifiers["DataTransfer"].use_loop_data = True
-                bpy.context.object.modifiers["DataTransfer"].loop_mapping = 'POLYINTERP_LNORPROJ'
+                #bpy.context.object.modifiers["DataTransfer"].loop_mapping = 'POLYINTERP_LNORPROJ'
+                bpy.context.object.modifiers["DataTransfer"].loop_mapping = 'TOPOLOGY'
                 bpy.context.object.modifiers["DataTransfer"].data_types_loops = {'CUSTOM_NORMAL'}
                 bpy.ops.object.modifier_apply(apply_as='DATA', modifier="DataTransfer")
                 new.data.calc_normals_split()
