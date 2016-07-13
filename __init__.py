@@ -140,6 +140,12 @@ class YABEEProperty(bpy.types.PropertyGroup):
             description="Run pview after exporting",
             default=False,
             )
+            
+    opt_use_loop_normals = BoolProperty(
+            name="Use custom vertex normals",
+            description="Use loop normals created by applying 'Normal Edit' Modifier as vertex normals.",
+            default=False,
+            )
 
     opt_export_pbs = BoolProperty(
             name="Export PBS",
@@ -209,6 +215,7 @@ class YABEEProperty(bpy.types.PropertyGroup):
             layout.row().prop(self, 'opt_merge_actor')
             layout.row().prop(self, 'opt_apply_modifiers')
             layout.row().prop(self, 'opt_pview')
+            layout.row().prop(self, 'opt_use_loop_normals')
 
             layout.row().prop(self, 'opt_export_pbs')
 
@@ -269,6 +276,7 @@ class YABEEProperty(bpy.types.PropertyGroup):
         self.opt_merge_actor = True
         self.opt_apply_modifiers = True
         self.opt_pview = False
+        self.opt_use_loop_normals = False
         self.opt_export_pbs = False
         while self.opt_anim_list.anim_collection[:]:
             bpy.ops.export.egg_anim_remove('INVOKE_DEFAULT')
@@ -389,6 +397,7 @@ class ExportPanda3DEGG(bpy.types.Operator, ExportHelper):
                             sett.opt_merge_actor,
                             sett.opt_apply_modifiers,
                             sett.opt_pview,
+                            sett.opt_use_loop_normals,
                             sett.opt_export_pbs)
         if not errors:
             return {'FINISHED'}
