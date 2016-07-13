@@ -418,7 +418,6 @@ class EGGMeshObjectData(EGGBaseObjectData):
 
     def __init__(self, obj):
         EGGBaseObjectData.__init__(self, obj)
-        print("YABEE handling: ", self.obj_ref)
         self.poly_vtx_ref = self.pre_convert_poly_vtx_ref()
         self.smooth_vtx_list = self.get_smooth_vtx_list()
         self.colors_vtx_ref = self.pre_convert_vtx_color()
@@ -806,7 +805,7 @@ class EGGMeshObjectData(EGGBaseObjectData):
         @param attributes: list of polygon's attributes.
 
         @return: list of polygon's attributes.
-        """            
+        """
         no = self.obj_ref.matrix_world.to_euler().to_matrix() * face.normal
         #attributes.append('<Normal> {%s %s %s}' % (STRF(no[0]), STRF(no[1]), STRF(no[2])))
         attributes.append('<Normal> {%f %f %f}' % no[:])
@@ -1109,7 +1108,7 @@ class AnimCollector():
                     matrix = bone.parent.matrix.inverted() * bone.matrix
                 else:
                     matrix = arm.matrix_world * bone.matrix
-                    
+
                 i, j, k = matrix.to_scale()
                 anim_dict[bone.yabee_name]['i'].append(i)
                 anim_dict[bone.yabee_name]['j'].append(j)
@@ -1235,29 +1234,29 @@ def get_egg_materials_str(object_names=None):
             # where arbitrary depends on the shading model
 
             if pbepbs.shading_model == "EMISSIVE":
-                mat_str += '  <Scalar> roughness { %s }\n' % ("1")
-                mat_str += '  <Scalar> metallic { %s }\n' % ("0")
-                mat_str += '  <Scalar> ior { %s }\n' % ("1")
+                mat_str += '  <Scalar> roughness { %s }\n' % STRF(1.0)
+                mat_str += '  <Scalar> metallic { %s }\n' % STRF(0.0)
+                mat_str += '  <Scalar> ior { %s }\n' % STRF(1.0)
 
                 mat_str += '  <Scalar> baser { %s }\n' % STRF(material.diffuse_color[0] * pbepbs.emissive_factor)
                 mat_str += '  <Scalar> baseg { %s }\n' % STRF(material.diffuse_color[1] * pbepbs.emissive_factor)
                 mat_str += '  <Scalar> baseb { %s }\n' % STRF(material.diffuse_color[2] * pbepbs.emissive_factor)
-                #mat_str += '  <Scalar> basea { %s }\n' % ("1")
+                #mat_str += '  <Scalar> basea { %s }\n' % STRF(1.0)
                 
                 mat_str += '  <Scalar> emitr { %s }\n' % STRF(shading_model_id)
-                mat_str += '  <Scalar> emitg { %s }\n' % ("0")
-                mat_str += '  <Scalar> emitb { %s }\n' % ("0")
+                mat_str += '  <Scalar> emitg { %s }\n' % STRF(0.0)
+                mat_str += '  <Scalar> emitb { %s }\n' % STRF(0.0)
             else:
                 mat_str += '  <Scalar> baser { %s }\n' % STRF(material.diffuse_color[0])
                 mat_str += '  <Scalar> baseg { %s }\n' % STRF(material.diffuse_color[1])
                 mat_str += '  <Scalar> baseb { %s }\n' % STRF(material.diffuse_color[2])
-                #mat_str += '  <Scalar> basea { %s }\n' % ("1")
+                #mat_str += '  <Scalar> basea { %s }\n' % STRF(1.0)
 
                 if pbepbs.shading_model == "CLEARCOAT" or (pbepbs.metallic and 
                         pbepbs.shading_model != "SKIN"):
-                    mat_str += '  <Scalar> metallic { %s }\n' % ("1")
+                    mat_str += '  <Scalar> metallic { %s }\n' % STRF(1.0)
                 else:
-                    mat_str += '  <Scalar> metallic { %s }\n' % ("0")
+                    mat_str += '  <Scalar> metallic { %s }\n' % STRF(0.0)
 
                 mat_str += '  <Scalar> roughness { %s }\n' % STRF(pbepbs.roughness)
                 mat_str += '  <Scalar> ior { %s }\n' % STRF(pbepbs.ior)
@@ -1272,7 +1271,7 @@ def get_egg_materials_str(object_names=None):
                 mat_str += '  <Scalar> emitr { %s }\n' % STRF(shading_model_id)
                 mat_str += '  <Scalar> emitg { %s }\n' % STRF(pbepbs.normal_strength)
                 mat_str += '  <Scalar> emitb { %s }\n' % STRF(arbitrary0)
-                # arbitrary1 is not used as of yet.
+                # arbitrary1 is not used as of now.
 
         else:
             if not mat.use_shadeless:
@@ -1706,7 +1705,7 @@ def write_out(fname, anims, from_actions, uv_img_as_tex, sep_anim, a_only,
     for d in old_data:
         for obj in d:
             if obj not in old_data[d]:
-                print("{} has {} users. Proceeding to clear.".format(obj.name, obj.users))
+                #print("{} has {} users. Proceeding to clear.".format(obj.name, obj.users))
                 obj.user_clear()
                 try:
                     d.remove(obj)
