@@ -32,6 +32,7 @@ MERGE_ACTOR_MESH = None
 APPLY_MOD = None
 PVIEW = True
 EXPORT_PBS = False
+USE_LOOP_NORMALS = False
 STRF = lambda x: '%.6f' % x
 USED_MATERIALS = None
 USED_TEXTURES = None
@@ -609,6 +610,20 @@ class EGGMeshObjectData(EGGBaseObjectData):
             attributes.append('<Normal> { %f %f %f }' % no[:])
         return attributes
 
+    def collect_vtx_normal_from_loop(self, v, idx, attributes):
+        """ Add <Normal> to the vertex attributes list, using the loop normal associated with this Blender vertex index.
+
+        @param v: Blender vertex index.
+        @param idx: the EGG (converted) vertex index.
+        @param attributes: list of vertex attributes
+
+        @return: list of vertex attributes.
+        """
+        if idx in self.smooth_vtx_list:
+            no = self.obj_ref.matrix_world.to_euler().to_matrix() * self.obj_ref.data.loops[self.map_vertex_to_loop[v]].normal
+            attributes.append('<Normal> { %f %f %f }' % no[:])
+        return attributes
+
     def collect_vtx_rgba(self, vidx, face, attributes):
         if self.colors_vtx_ref:
             # Don't write out vertex colors unless a material actually uses it.
@@ -644,9 +659,14 @@ class EGGMeshObjectData(EGGBaseObjectData):
         """
         xyz = self.collect_vtx_xyz
         dxyz = self.collect_vtx_dxyz
-        normal = self.collect_vtx_normal
         rgba = self.collect_vtx_rgba
         uv = self.collect_vtx_uv
+        if USE_LOOP_NORMALS and self.obj_ref.data.has_custom_normals:
+            self.map_vertex_to_loop = {self.obj_ref.data.loops[lidx].vertex_index: lidx 
+                for p in self.obj_ref.data.polygons for lidx in p.loop_indices}
+            normal = self.collect_vtx_normal_from_loop
+        else:
+            normal = self.collect_vtx_normal
 
         vertices = []
         idx = 0
@@ -665,8 +685,6 @@ class EGGMeshObjectData(EGGBaseObjectData):
                 vertices.append(vtx)
                 idx += 1
         return vertices
-
-
 
 
     #-------------------------------------------------------------------
@@ -1203,24 +1221,57 @@ def get_egg_materials_str(object_names=None):
         mat_str += '<Material> %s {\n' % eggSafeName(mat.yabee_name)
 
         if EXPORT_PBS and hasattr(mat, "pbepbs"):
-            # Physically based shading panel from the Panda3D BAM Exporter
-            pbs = mat.pbepbs
 
-            mat_str += '  <Scalar> roughness { %s }\n' % STRF(pbs.roughness)
-            mat_str += '  <Scalar> metallic { %s }\n' % ("1" if pbs.metallic else "0")
-            mat_str += '  <Scalar> ior { %s }\n' % STRF(pbs.ior)
+            #The following sticks closely to Panda BAM Exporter's MaterialWriter.
+            material = mat
+            pbepbs = material.pbepbs
+            shading_model_id = (
+                "DEFAULT", "EMISSIVE", "CLEARCOAT", "TRANSPARENT",
+                "SKIN", "FOLIAGE").index(pbepbs.shading_model)
 
-            mat_str += '  <Scalar> baser { %s }\n' % STRF(mat.diffuse_color[0])
-            mat_str += '  <Scalar> baseg { %s }\n' % STRF(mat.diffuse_color[1])
-            mat_str += '  <Scalar> baseb { %s }\n' % STRF(mat.diffuse_color[2])
+            # Emissive color contains:
+            # (shading_model, normal_strength, arbitrary-0, arbitrary-1)
+            # where arbitrary depends on the shading model
 
-            if mat.alpha != 1.0:
-                mat_str += '  <Scalar> basea { %s }\n' % STRF(mat.alpha)
+            if pbepbs.shading_model == "EMISSIVE":
+                mat_str += '  <Scalar> roughness { %s }\n' % STRF(1.0)
+                mat_str += '  <Scalar> metallic { %s }\n' % STRF(0.0)
+                mat_str += '  <Scalar> ior { %s }\n' % STRF(1.0)
 
-            mat_str += '  <Scalar> emitr { %s }\n' % STRF(pbs.normal_strength)
-            mat_str += '  <Scalar> emitg { %s }\n' % STRF(0.0)
-            mat_str += '  <Scalar> emitb { %s }\n' % STRF(pbs.translucency)
-            mat_str += '  <Scalar> emita { %s }\n' % STRF(pbs.emissive_factor)
+                mat_str += '  <Scalar> baser { %s }\n' % STRF(material.diffuse_color[0] * pbepbs.emissive_factor)
+                mat_str += '  <Scalar> baseg { %s }\n' % STRF(material.diffuse_color[1] * pbepbs.emissive_factor)
+                mat_str += '  <Scalar> baseb { %s }\n' % STRF(material.diffuse_color[2] * pbepbs.emissive_factor)
+                #mat_str += '  <Scalar> basea { %s }\n' % STRF(1.0)
+                
+                mat_str += '  <Scalar> emitr { %s }\n' % STRF(shading_model_id)
+                mat_str += '  <Scalar> emitg { %s }\n' % STRF(0.0)
+                mat_str += '  <Scalar> emitb { %s }\n' % STRF(0.0)
+            else:
+                mat_str += '  <Scalar> baser { %s }\n' % STRF(material.diffuse_color[0])
+                mat_str += '  <Scalar> baseg { %s }\n' % STRF(material.diffuse_color[1])
+                mat_str += '  <Scalar> baseb { %s }\n' % STRF(material.diffuse_color[2])
+                #mat_str += '  <Scalar> basea { %s }\n' % STRF(1.0)
+
+                if pbepbs.shading_model == "CLEARCOAT" or (pbepbs.metallic and 
+                        pbepbs.shading_model != "SKIN"):
+                    mat_str += '  <Scalar> metallic { %s }\n' % STRF(1.0)
+                else:
+                    mat_str += '  <Scalar> metallic { %s }\n' % STRF(0.0)
+
+                mat_str += '  <Scalar> roughness { %s }\n' % STRF(pbepbs.roughness)
+                mat_str += '  <Scalar> ior { %s }\n' % STRF(pbepbs.ior)
+
+                if pbepbs.shading_model in ("DEFAULT", "CLEARCOAT", "SKIN"):
+                    arbitrary0, arbitrary1 = 0, 0
+                elif pbepbs.shading_model == "FOLIAGE":
+                    arbitrary0, arbitrary1 = pbepbs.translucency, 0
+                elif pbepbs.shading_model == "TRANSPARENT":
+                    arbitrary0, arbitrary1 = material.alpha, 0
+
+                mat_str += '  <Scalar> emitr { %s }\n' % STRF(shading_model_id)
+                mat_str += '  <Scalar> emitg { %s }\n' % STRF(pbepbs.normal_strength)
+                mat_str += '  <Scalar> emitb { %s }\n' % STRF(arbitrary0)
+                # arbitrary1 is not used as of now.
 
         else:
             if not mat.use_shadeless:
@@ -1432,12 +1483,12 @@ def generate_shadow_uvs():
 #-----------------------------------------------------------------------
 def write_out(fname, anims, from_actions, uv_img_as_tex, sep_anim, a_only,
               copy_tex, t_path, tbs, tex_processor, b_layers,
-              m_actor, apply_m, pview, export_pbs, objects=None):
+              m_actor, apply_m, pview, loop_normals, export_pbs, objects=None):
     global FILE_PATH, ANIMATIONS, ANIMS_FROM_ACTIONS, EXPORT_UV_IMAGE_AS_TEXTURE, \
            COPY_TEX_FILES, TEX_PATH, SEPARATE_ANIM_FILE, ANIM_ONLY, \
            STRF, CALC_TBS, TEXTURE_PROCESSOR, BAKE_LAYERS, \
            MERGE_ACTOR_MESH, APPLY_MOD, PVIEW, USED_MATERIALS, USED_TEXTURES, \
-           EXPORT_PBS
+           USE_LOOP_NORMALS, EXPORT_PBS
     imp.reload(sys.modules[lib_name + '.texture_processor'])
     imp.reload(sys.modules[lib_name + '.utils'])
     errors = []
@@ -1456,6 +1507,7 @@ def write_out(fname, anims, from_actions, uv_img_as_tex, sep_anim, a_only,
     MERGE_ACTOR_MESH = m_actor
     APPLY_MOD = apply_m
     PVIEW = pview
+    USE_LOOP_NORMALS = loop_normals
     EXPORT_PBS = export_pbs
     s_acc = '%.6f'
     def str_f(x):
@@ -1501,10 +1553,29 @@ def write_out(fname, anims, from_actions, uv_img_as_tex, sep_anim, a_only,
               bpy.data.speakers, bpy.data.texts, bpy.data.window_managers,
               bpy.data.worlds, bpy.data.grease_pencil):
         old_data[d] = d[:]
+    
+    if USE_LOOP_NORMALS:
+        #even obj.data.copy() will not contain loop normals
+        precopy_obj_list = [obj for obj in bpy.context.scene.objects
+                    if obj.yabee_name in selected_obj]
+        
     bpy.ops.scene.new(type = 'FULL_COPY')
     try:
         obj_list = [obj for obj in bpy.context.scene.objects
                     if obj.yabee_name in selected_obj]
+        if USE_LOOP_NORMALS:
+            for old, new in zip(precopy_obj_list, obj_list):
+                print("{} has custom normals!".format(old.name) if old.data.has_custom_normals else "{} has no custom normals.".format(old.name))
+                bpy.context.scene.objects.active = new
+                bpy.ops.object.modifier_add(type='DATA_TRANSFER')
+                bpy.context.object.modifiers["DataTransfer"].object = old
+                bpy.context.object.modifiers["DataTransfer"].use_loop_data = True
+                #bpy.context.object.modifiers["DataTransfer"].loop_mapping = 'POLYINTERP_LNORPROJ'
+                bpy.context.object.modifiers["DataTransfer"].loop_mapping = 'TOPOLOGY'
+                bpy.context.object.modifiers["DataTransfer"].data_types_loops = {'CUSTOM_NORMAL'}
+                bpy.ops.object.modifier_apply(apply_as='DATA', modifier="DataTransfer")
+                new.data.calc_normals_split()
+            
         if CALC_TBS == 'BLENDER':
             for obj in obj_list:
 
@@ -1635,6 +1706,7 @@ def write_out(fname, anims, from_actions, uv_img_as_tex, sep_anim, a_only,
     for d in old_data:
         for obj in d:
             if obj not in old_data[d]:
+                #print("{} has {} users. Proceeding to clear.".format(obj.name, obj.users))
                 obj.user_clear()
                 try:
                     d.remove(obj)

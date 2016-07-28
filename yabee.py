@@ -81,14 +81,16 @@ if __name__ == '__main__':
     import imp
     imp.reload(io_scene_egg.yabee_libs.egg_writer)
     egg_writer = io_scene_egg.yabee_libs.egg_writer
-    egg_writer.write_out(FILE_PATH,
+
+    egg_write.write_out(FILE_PATH,
                         ANIMATIONS, ANIMS_FROM_ACTIONS,
                         EXPORT_UV_IMAGE_AS_TEXTURE,
                         SEPARATE_ANIM_FILE,
                         ANIM_ONLY,
                         COPY_TEX_FILES,
                         TEX_PATH,
-                        FLOATING_POINT_ACCURACY,
                         CALC_TBS,
                         TEXTURE_PROCESSOR,
-                        BAKE_LAYERS, True, True, True)
+                        BAKE_LAYERS,
+                        True, True, True,  # MERGE_ACTOR_MESH, APPLY_MOD, PVIEW
+                        False, False) # USE_LOOP_NORMALS, EXPORT_PBS
