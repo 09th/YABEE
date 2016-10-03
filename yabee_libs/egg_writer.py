@@ -1710,7 +1710,6 @@ def write_out(fname, anims, from_actions, uv_img_as_tex, sep_anim, a_only,
                 #print("{} has {} users. Proceeding to clear.".format(obj.name, obj.users))
                 obj.user_clear()
                 try:
-                    #d.remove(obj)
                     d.remove(obj, do_unlink=True)
                 except:
                     print ('WARNING: Can\'t delete', obj, 'from', d)
