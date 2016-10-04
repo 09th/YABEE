@@ -1565,7 +1565,7 @@ def write_out(fname, anims, from_actions, uv_img_as_tex, sep_anim, a_only,
                     if obj.yabee_name in selected_obj]
         if USE_LOOP_NORMALS:
             for old, new in zip(precopy_obj_list, obj_list):
-                if obj.type != "MESH":
+                if old.type != "MESH":
                     continue
                 print("{} has custom normals!".format(old.name) if old.data.has_custom_normals else "{} has no custom normals.".format(old.name))
                 bpy.context.scene.objects.active = new
