@@ -1565,6 +1565,8 @@ def write_out(fname, anims, from_actions, uv_img_as_tex, sep_anim, a_only,
                     if obj.yabee_name in selected_obj]
         if USE_LOOP_NORMALS:
             for old, new in zip(precopy_obj_list, obj_list):
+                if old.type != "MESH":
+                    continue
                 print("{} has custom normals!".format(old.name) if old.data.has_custom_normals else "{} has no custom normals.".format(old.name))
                 bpy.context.scene.objects.active = new
                 bpy.ops.object.modifier_add(type='DATA_TRANSFER')
@@ -1575,7 +1577,6 @@ def write_out(fname, anims, from_actions, uv_img_as_tex, sep_anim, a_only,
                 bpy.context.object.modifiers["DataTransfer"].data_types_loops = {'CUSTOM_NORMAL'}
                 bpy.ops.object.modifier_apply(apply_as='DATA', modifier="DataTransfer")
                 new.data.calc_normals_split()
-            
         if CALC_TBS == 'BLENDER':
             for obj in obj_list:
 
@@ -1709,7 +1710,7 @@ def write_out(fname, anims, from_actions, uv_img_as_tex, sep_anim, a_only,
                 #print("{} has {} users. Proceeding to clear.".format(obj.name, obj.users))
                 obj.user_clear()
                 try:
-                    d.remove(obj)
+                    d.remove(obj, do_unlink=True)
                 except:
                     print ('WARNING: Can\'t delete', obj, 'from', d)
     return errors
