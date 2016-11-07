@@ -32,6 +32,7 @@ MERGE_ACTOR_MESH = None
 APPLY_MOD = None
 PVIEW = True
 EXPORT_PBS = False
+FORCE_EXPORT_VERTEX_COLORS=False
 USE_LOOP_NORMALS = False
 STRF = lambda x: '%.6f' % x
 USED_MATERIALS = None
@@ -629,7 +630,7 @@ class EGGMeshObjectData(EGGBaseObjectData):
             # Don't write out vertex colors unless a material actually uses it.
             if face.material_index < len(self.obj_ref.data.materials):
                 mat = self.obj_ref.data.materials[face.material_index]
-                if mat.use_vertex_color_paint:
+                if FORCE_EXPORT_VERTEX_COLORS or mat.use_vertex_color_paint:
                     col = self.colors_vtx_ref[vidx]
                     attributes.append('<RGBA> { %f %f %f 1.0 }' % col[:])
         return attributes
@@ -662,7 +663,7 @@ class EGGMeshObjectData(EGGBaseObjectData):
         rgba = self.collect_vtx_rgba
         uv = self.collect_vtx_uv
         if USE_LOOP_NORMALS and self.obj_ref.data.has_custom_normals:
-            self.map_vertex_to_loop = {self.obj_ref.data.loops[lidx].vertex_index: lidx 
+            self.map_vertex_to_loop = {self.obj_ref.data.loops[lidx].vertex_index: lidx
                 for p in self.obj_ref.data.polygons for lidx in p.loop_indices}
             normal = self.collect_vtx_normal_from_loop
         else:
@@ -1242,7 +1243,7 @@ def get_egg_materials_str(object_names=None):
                 mat_str += '  <Scalar> baseg { %s }\n' % STRF(material.diffuse_color[1] * pbepbs.emissive_factor)
                 mat_str += '  <Scalar> baseb { %s }\n' % STRF(material.diffuse_color[2] * pbepbs.emissive_factor)
                 #mat_str += '  <Scalar> basea { %s }\n' % STRF(1.0)
-                
+
                 mat_str += '  <Scalar> emitr { %s }\n' % STRF(shading_model_id)
                 mat_str += '  <Scalar> emitg { %s }\n' % STRF(0.0)
                 mat_str += '  <Scalar> emitb { %s }\n' % STRF(0.0)
@@ -1252,7 +1253,7 @@ def get_egg_materials_str(object_names=None):
                 mat_str += '  <Scalar> baseb { %s }\n' % STRF(material.diffuse_color[2])
                 #mat_str += '  <Scalar> basea { %s }\n' % STRF(1.0)
 
-                if pbepbs.shading_model == "CLEARCOAT" or (pbepbs.metallic and 
+                if pbepbs.shading_model == "CLEARCOAT" or (pbepbs.metallic and
                         pbepbs.shading_model != "SKIN"):
                     mat_str += '  <Scalar> metallic { %s }\n' % STRF(1.0)
                 else:
@@ -1483,12 +1484,12 @@ def generate_shadow_uvs():
 #-----------------------------------------------------------------------
 def write_out(fname, anims, from_actions, uv_img_as_tex, sep_anim, a_only,
               copy_tex, t_path, tbs, tex_processor, b_layers,
-              m_actor, apply_m, pview, loop_normals, export_pbs, objects=None):
+              m_actor, apply_m, pview, loop_normals, export_pbs, force_export_vertex_colors, objects=None):
     global FILE_PATH, ANIMATIONS, ANIMS_FROM_ACTIONS, EXPORT_UV_IMAGE_AS_TEXTURE, \
            COPY_TEX_FILES, TEX_PATH, SEPARATE_ANIM_FILE, ANIM_ONLY, \
            STRF, CALC_TBS, TEXTURE_PROCESSOR, BAKE_LAYERS, \
            MERGE_ACTOR_MESH, APPLY_MOD, PVIEW, USED_MATERIALS, USED_TEXTURES, \
-           USE_LOOP_NORMALS, EXPORT_PBS
+           USE_LOOP_NORMALS, EXPORT_PBS, FORCE_EXPORT_VERTEX_COLORS
     imp.reload(sys.modules[lib_name + '.texture_processor'])
     imp.reload(sys.modules[lib_name + '.utils'])
     errors = []
@@ -1509,6 +1510,7 @@ def write_out(fname, anims, from_actions, uv_img_as_tex, sep_anim, a_only,
     PVIEW = pview
     USE_LOOP_NORMALS = loop_normals
     EXPORT_PBS = export_pbs
+    FORCE_EXPORT_VERTEX_COLORS = force_export_vertex_colors
     s_acc = '%.6f'
     def str_f(x):
         return s_acc % x
@@ -1553,12 +1555,12 @@ def write_out(fname, anims, from_actions, uv_img_as_tex, sep_anim, a_only,
               bpy.data.speakers, bpy.data.texts, bpy.data.window_managers,
               bpy.data.worlds, bpy.data.grease_pencil):
         old_data[d] = d[:]
-    
+
     if USE_LOOP_NORMALS:
         #even obj.data.copy() will not contain loop normals
         precopy_obj_list = [obj for obj in bpy.context.scene.objects
                     if obj.yabee_name in selected_obj]
-        
+
     bpy.ops.scene.new(type = 'FULL_COPY')
     try:
         obj_list = [obj for obj in bpy.context.scene.objects
