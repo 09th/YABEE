@@ -140,7 +140,7 @@ class YABEEProperty(bpy.types.PropertyGroup):
             description="Run pview after exporting",
             default=False,
             )
-            
+
     opt_use_loop_normals = BoolProperty(
             name="Use custom vertex normals",
             description="Use loop normals created by applying 'Normal Edit' Modifier as vertex normals.",
@@ -152,6 +152,12 @@ class YABEEProperty(bpy.types.PropertyGroup):
             description="Export Physically Based Properties, requires the BAM Exporter",
             default=False
         )
+
+    opt_force_export_vertex_colors = BoolProperty(
+            name="Force export vertex colors",
+            description="when False, writes only vertex color if polygon material is using it ",
+            default=False,
+            )
 
     opt_anim_list = PointerProperty(type=EGGAnimList)
 
@@ -218,6 +224,7 @@ class YABEEProperty(bpy.types.PropertyGroup):
             layout.row().prop(self, 'opt_use_loop_normals')
 
             layout.row().prop(self, 'opt_export_pbs')
+            layout.row().prop(self, 'opt_force_export_vertex_colors')
 
     def get_bake_dict(self):
         d = {}
@@ -278,6 +285,7 @@ class YABEEProperty(bpy.types.PropertyGroup):
         self.opt_pview = False
         self.opt_use_loop_normals = False
         self.opt_export_pbs = False
+        self.opt_force_export_vertex_colors = False
         while self.opt_anim_list.anim_collection[:]:
             bpy.ops.export.egg_anim_remove('INVOKE_DEFAULT')
         self.first_run = False
@@ -398,7 +406,8 @@ class ExportPanda3DEGG(bpy.types.Operator, ExportHelper):
                             sett.opt_apply_modifiers,
                             sett.opt_pview,
                             sett.opt_use_loop_normals,
-                            sett.opt_export_pbs)
+                            sett.opt_export_pbs,
+                            sett.opt_force_export_vertex_colors,)
         if not errors:
             return {'FINISHED'}
         else:

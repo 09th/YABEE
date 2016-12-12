@@ -93,4 +93,5 @@ if __name__ == '__main__':
                         TEXTURE_PROCESSOR,
                         BAKE_LAYERS,
                         True, True, True,  # MERGE_ACTOR_MESH, APPLY_MOD, PVIEW
-                        False, False) # USE_LOOP_NORMALS, EXPORT_PBS
+                        False, False, # USE_LOOP_NORMALS, EXPORT_PBS
+                        False) # FORCE_EXPORT_VERTEX_COLORS
