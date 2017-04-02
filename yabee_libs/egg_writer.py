@@ -630,7 +630,7 @@ class EGGMeshObjectData(EGGBaseObjectData):
             # Don't write out vertex colors unless a material actually uses it.
             if face.material_index < len(self.obj_ref.data.materials):
                 mat = self.obj_ref.data.materials[face.material_index]
-                if FORCE_EXPORT_VERTEX_COLORS or mat.use_vertex_color_paint:
+                if FORCE_EXPORT_VERTEX_COLORS or (mat and mat.use_vertex_color_paint):
                     col = self.colors_vtx_ref[vidx]
                     attributes.append('<RGBA> { %f %f %f 1.0 }' % col[:])
         return attributes
@@ -724,9 +724,11 @@ class EGGMeshObjectData(EGGBaseObjectData):
 
             # Find the material assigned to that polygon:
             # First, check if that polygon has a material at all
+            material = None
             if face.material_index < len(self.obj_ref.data.materials):
                 material = self.obj_ref.data.materials[face.material_index]
 
+            if material:
                 # Check if the material has per-face textures enabled. If per-face textures
                 # are enabled, the material textures are ignored and only the active
                 # face textures are exported. Otherwise the per-face textures are completely
@@ -1442,7 +1444,7 @@ def reparenting_to_armature(obj_list):
     for obj in obj_list:
         for mod in obj.modifiers:
             if mod and mod.type == 'ARMATURE' and mod.show_viewport:
-                if obj.parent != mod.object:
+                if mod.object and obj.parent != mod.object:
                     print('WARNING:Reparent %s to %s' % (obj.yabee_name, mod.object.yabee_name))
                     m = Matrix(obj.matrix_world)
                     obj.parent = mod.object
