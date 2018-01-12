@@ -6,7 +6,7 @@ from mathutils import *
 from math import pi
 #import io_scene_egg.yabee_libs
 #from . import yabee_libs
-from .texture_processor import SimpleTextures, TextureBaker, RawTextures
+from .texture_processor import SimpleTextures, TextureBaker, RawTextures, PbrTextures
 from .utils import *
 import subprocess
 import imp
@@ -428,23 +428,29 @@ class EGGMeshObjectData(EGGBaseObjectData):
             self.tangent_layers = self.pre_calc_TBS()
 
         # Check if we may need to generate ORCO coordinates.
+        uses_nodes = False
         need_orco = False
         for f in self.obj_ref.data.polygons:
             if f.material_index >= len(obj.data.materials):
                 continue
             if not obj.data.materials[f.material_index]:
                 continue
+            if obj.data.materials[f.material_index]:
+                if obj.data.materials[f.material_index].use_nodes:
+                    uses_nodes = True
             for slot in obj.data.materials[f.material_index].texture_slots:
                 if slot and slot.texture_coords == 'ORCO':
                     need_orco = True
                     break
-        if need_orco:
+        print("orcocheck",uses_nodes, need_orco)
+        if (need_orco == True) and (uses_nodes == False):
+            print("starting orco calc")
             self.pre_calc_ORCO()
 
         # Store current active UV name
         self.active_uv = None
         auv = [uv for uv in obj.data.uv_textures if uv.active]
-        if auv:
+        if auv and uses_nodes == False: # if we use nodes we don't want the active-uv name to be empty later on. (we need those to acces from uv-map nodes)
             self.active_uv = auv[0].name
 
 
@@ -532,6 +538,7 @@ class EGGMeshObjectData(EGGBaseObjectData):
     def pre_calc_ORCO(self):
         """ Generate texture coordinates for ORCO slots
         """
+        print("precalculating orco")
         # We first have to calculate the min and max vertex position...
         minmax = None
         for f in self.obj_ref.data.polygons:
@@ -727,7 +734,13 @@ class EGGMeshObjectData(EGGBaseObjectData):
             material = None
             if face.material_index < len(self.obj_ref.data.materials):
                 material = self.obj_ref.data.materials[face.material_index]
-
+            
+            
+            matIsFancyPBRNode = False
+            if material.use_nodes: 
+                nodeTree = material.node_tree
+                if nodeTree.nodes.get("Panda3D_RP_Diffuse_Mat"):
+                    matIsFancyPBRNode = True
             if material:
                 # Check if the material has per-face textures enabled. If per-face textures
                 # are enabled, the material textures are ignored and only the active
@@ -747,6 +760,33 @@ class EGGMeshObjectData(EGGBaseObjectData):
                             if tex_name in USED_TEXTURES and tex_name not in textures:
                                 textures.append(tex_name)
 
+                elif matIsFancyPBRNode:
+                    #print(USED_TEXTURES)
+                    #we need to find a couple of textures here
+                    nodeNames={"ColorTex":None, "RoughnessTex":None , "NormalTex":None, "SpecularDummyTex":None} ##we do need an empty for specular but it's added somewhere else
+                    #let's crawl all links, find the ones connected to the PandaPBRNode, find the connected textures, use them.
+                    for link in material.node_tree.links:
+                        if link.to_node.name == "Panda3D_RP_Diffuse_Mat": #if the link connects to the panda3ddiffuse node
+                            if link.to_socket.name in nodeNames.keys():  # and it connects to one of our known sockets...
+                                textureNode = link.from_node
+                                texFilePath = textureNode.image.filepath #we have to find the texture name here.
+                                nodeNames[link.to_socket.name] = textureNode.name
+                                texname = textureNode.name
+                                #orig_tex_names = material.yabee_texture_slots.split(NAME_SEPARATOR)
+                                
+                                #MARK 
+                    #print(nodeNames)
+                    
+                    for x in ["ColorTex","NormalTex","SpecularDummyTex","RoughnessTex"]:
+                        tex = nodeNames[x]
+                        if tex:
+                            textures.append(tex)
+                        else:
+                            pass
+                            textures.append("empty")
+                            #todo: append empty texture for the slot
+                    
+                
                 # Material has no per-face textures enabled
                 else:
 
@@ -764,6 +804,7 @@ class EGGMeshObjectData(EGGBaseObjectData):
 
                         if tex_name not in textures:
                             textures.append(tex_name)
+                            
 
             else:
                 # The object has no material, that means it will get no textures
@@ -771,8 +812,8 @@ class EGGMeshObjectData(EGGBaseObjectData):
 
             # Store all textures
             for tex_name in textures:
-                if tex_name in USED_TEXTURES: # Make sure that  we'll have this texture in header
-                    attributes.append('<TRef> { %s }' % eggSafeName(tex_name))
+                #if tex_name in USED_TEXTURES: # Make sure that  we'll have this texture in header #todo:add this back once empties are added for PBR nodes
+                attributes.append('<TRef> { %s }' % eggSafeName(tex_name))
 
         else:
             if self.obj_ref.data.uv_textures:
@@ -1219,11 +1260,53 @@ def get_egg_materials_str(object_names=None):
 
     mat_str = ''
     used_materials = get_used_materials(objects)
+    containsPBRNodes = False
     for m_idx in used_materials:
         mat = bpy.data.materials[m_idx]
         mat_str += '<Material> %s {\n' % eggSafeName(mat.yabee_name)
+        #MARK
+        
+        matIsFancyPBRNode = False
+        matFancyType = 0 #default (diffuse) = 0 ,
+        if mat.use_nodes: 
+            nodeTree = mat.node_tree
+            if nodeTree.nodes.get("Panda3D_RP_Diffuse_Mat"):
+                matIsFancyPBRNode = True
+                containsPBRNodes = True
+                matFancyType = 0
+        
+        
+        if matIsFancyPBRNode:
+            if matFancyType == 0:
+                pandaShaderNode = nodeTree.nodes.get("Panda3D_RP_Diffuse_Mat")
+                
+                metallic = 0 
+                roughness = pandaShaderNode.inputs.get("RoughnessVal").default_value
+                ior = pandaShaderNode.inputs.get("IOR").default_value
+                col = list(pandaShaderNode.inputs.get("ColorVal").default_value)
+                base_r = col[0]
+                base_g = col[1]
+                base_b = col[2]
+                
+                normalStrength = pandaShaderNode.inputs.get("NormalStrength").default_value
+                
+                mat_str += '  <Scalar> roughness { %s }\n' % STRF(roughness)
+                mat_str += '  <Scalar> metallic { %s }\n' % STRF(0.0)
+                mat_str += '  <Scalar> ior { %s }\n' % STRF(ior)
 
-        if EXPORT_PBS and hasattr(mat, "pbepbs"):
+                mat_str += '  <Scalar> baser { %s }\n' % STRF(base_r)
+                mat_str += '  <Scalar> baseg { %s }\n' % STRF(base_g)
+                mat_str += '  <Scalar> baseb { %s }\n' % STRF(base_b)
+                #mat_str += '  <Scalar> basea { %s }\n' % STRF(1.0)
+                
+                #("DEFAULT", "EMISSIVE", "CLEARCOAT", "TRANSPARENT","SKIN", "FOLIAGE")
+                shading_model_id = 0
+                mat_str += '  <Scalar> emitr { %s }\n' % STRF(shading_model_id)
+                mat_str += '  <Scalar> emitg { %s }\n' % STRF(normalStrength)
+                mat_str += '  <Scalar> emitb { %s }\n' % STRF(0.0)
+            
+        
+        elif EXPORT_PBS and hasattr(mat, "pbepbs"):
 
             #The following sticks closely to Panda BAM Exporter's MaterialWriter.
             material = mat
@@ -1329,7 +1412,16 @@ def get_egg_materials_str(object_names=None):
 
         mat_str += '}\n\n'
     used_textures = {}
-    if TEXTURE_PROCESSOR == 'SIMPLE':
+    
+    if containsPBRNodes:
+        print("collecting PBR textures")
+        pbrtex = PbrTextures(objects,
+                            EXPORT_UV_IMAGE_AS_TEXTURE,
+                            COPY_TEX_FILES,
+                            FILE_PATH, TEX_PATH)
+        used_textures.update(pbrtex.get_used_textures()) 
+    
+    elif TEXTURE_PROCESSOR == 'SIMPLE':
         st = SimpleTextures(objects,
                             EXPORT_UV_IMAGE_AS_TEXTURE,
                             COPY_TEX_FILES,

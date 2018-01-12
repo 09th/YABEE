@@ -13,6 +13,154 @@ BAKE_TYPES = {'diffuse': ('TEXTURE', 'MODULATE'),
               'shadow': ('SHADOW', 'MODULATE')
               }
 
+class PbrTextures():
+    def __init__(self, obj_list, uv_img_as_texture, copy_tex, file_path, tex_path):
+        self.obj_list = obj_list[:]
+        self.uv_img_as_texture = uv_img_as_texture
+        self.copy_tex = copy_tex
+        self.file_path = file_path
+        self.tex_path = tex_path
+    
+    def get_used_textures(self):
+        """ Collect images from the UV images and Material texture slots
+        tex_list structure:
+            image_name: { 'scalars': [(name, val), (name, val), ...],
+                          'path': 'path/to/texture',
+                          'transform': [(type, val), (type, val), ...]
+                        }
+        """
+        print("starting texture collection")
+        tex_list = {}
+        print( self.obj_list)
+        for obj in self.obj_list:
+            if obj.type == 'MESH':
+                print("processing object",obj)
+                use_uv_face_tex = False
+                use_uv_face_tex_alpha = False
+                # General textures
+                handled = set()
+                for f in obj.data.polygons:
+                    #print("processing polygon",f)
+                    if f.material_index < len(obj.data.materials):
+                        #print("found material index")
+                        mat = obj.data.materials[f.material_index]
+                        if not mat or mat in handled:
+                            continue
+                        print("found new material")
+                        handled.add(mat)
+                        
+                        nodeNames={"ColorTex":None, "RoughnessTex":None , "NormalTex":None, "SpecularDummyTex":None} ##we do need an empty for specular but it's added somewhere else
+                        #let's crawl all links, find the ones connected to the PandaPBRNode, find the connected textures, use them.
+                        for link in mat.node_tree.links:
+                            if link.to_node.name == "Panda3D_RP_Diffuse_Mat": #if the link connects to the panda3ddiffuse node
+                                print("found new panda3d diffuse node")
+                                if link.to_socket.name in nodeNames.keys():  # and it connects to one of our known sockets...
+                                    textureNode = link.from_node
+                                    
+                                    if textureNode.image == None:
+                                        print("WARNING: Texture node has no image assigned", obj.name, link.to_socket.name)
+                                        continue
+                                        
+                                    if not textureNode.inputs[0].is_linked:
+                                        print("WARNING: Texture has no UV-INPUT", obj.name, link.to_socket.name)
+                                        continue
+                                    
+                                    scalars = []
+                                    
+                                    for link2 in mat.node_tree.links: #we have to crawl the links again
+                                        if link2.to_node == textureNode: #we finally found the uv-map connected to the texture we want
+                                            uvNode = link2.from_node
+                                            scalars.append(('uv-name', uvNode.uv_map))
+                                            scalars.append(('envtype', "Modulate"))
+                                            
+                                            
+                            #if tex.texture_coords == 'UV':
+                            #   if tex.uv_layer:
+                            #        uv_name = tex.uv_layer
+                            #        if uv_name not in [uv.name for uv in obj.data.uv_textures]:
+                            #            print("WARNING: Object has no uv-map:", obj.name)
+                            #            uv_name = ''
+                            
+                                    t_path = textureNode.image.filepath
+                                    if self.copy_tex:
+                                        t_path = save_image(textureNode.image, self.file_path, self.tex_path)
+
+                                    #tex_list[tex.texture.name] = {'path': t_path,
+                                    #                              'scalars': scalars, 'transform': transform }
+                                    transform = []
+                                    
+
+                                    #if(textureNode.use_mipmap): #todo: find the use_mipmap flag
+                                    scalars.append(('minfilter', 'LINEAR_MIPMAP_LINEAR'))
+                                    scalars.append(('magfilter', 'LINEAR_MIPMAP_LINEAR'))
+
+                                    # Process wrap modes.
+                                    if(textureNode.extension == 'EXTEND'):
+                                        scalars.append(('wrap', 'CLAMP'))
+
+                                    elif(textureNode.extension in ('CLIP', 'CLIP_CUBE')):
+                                        scalars.append(('wrap', 'BORDER_COLOR'))
+                                        scalars.append(('borderr', '1'))
+                                        scalars.append(('borderg', '1'))
+                                        scalars.append(('borderb', '1'))
+                                        scalars.append(('bordera', '1'))
+
+                                    elif(textureNode.extension in ('REPEAT', 'CHECKER')):
+                                        scalars.append(('wrap', 'REPEAT'))
+
+                                    # Process coordinate mapping using a matrix.
+                                    mappings = (textureNode.texture_mapping.mapping_x, textureNode.texture_mapping.mapping_y, textureNode.texture_mapping.mapping_z)
+
+                                    if mappings != ('X', 'Y', 'Z'):
+                                        matrix = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
+
+                                        for col, mapping in enumerate(mappings):
+                                            if mapping == 'Z' :
+                                                # Z is not present when using UV coordinates. we always use uv for pbr so far
+                                                mapping = 'NONE'
+
+                                            if mapping == 'NONE':
+                                                # It seems that Blender sets Z to 0.5 when it is not present.
+                                                matrix[4 * 3 + col] = 0.5
+                                            else:
+                                                row = ord(mapping) - ord('X')
+                                                matrix[4 * row + col] = 1
+
+                                        transform.append(('Matrix4', matrix))
+
+                                    # Process texture transformations.
+                                    if(tuple(textureNode.texture_mapping.scale) != (1.0, 1.0, 1.0)):
+                                        # Blender scales from the centre, so shift it before scaling and then shift it back.
+                                        transform.append(('Translate', (-0.5, -0.5, -0.5)))
+                                        transform.append(('Scale', tex.scale))
+                                        transform.append(('Translate', (0.5, 0.5, 0.5)))
+
+                                    if(tuple(textureNode.texture_mapping.translation) != (0.0, 0.0, 0.0)):
+                                        transform.append(('Translate', texture_mapping.translation))
+                                        
+                                    #finally add everything to the list
+                                    
+                                    tex_list[textureNode.name] = {'path': t_path,
+                                                                        'scalars': scalars, 'transform': transform }
+                                    #let's not get into alpha with the diffuse material for now.
+                                    #if(envtype == 'MODULATE'):
+                                    #    if(alpha_tex and not alpha_map_assigned):
+                                    #        alpha_map_assigned = True
+                                    #        alpha_path = alpha_tex.texture.image.filepath
+                                    #        if self.copy_tex:
+                                    #            alpha_path = save_image(alpha_tex.texture.image, self.file_path, self.tex_path)
+                                    #        scalars.append(('alpha-file', '\"%s\"' % convertFileNameToPanda(alpha_path) ))
+                                    #        scalars.append(('alpha-file-channel', '4'))
+
+                                    #        if(mat.game_settings.alpha_blend == 'CLIP'):
+                                    #            scalars.append(('alpha', 'BINARY'))
+                                    #        elif(mat.game_settings.alpha_blend == 'ADD'):
+                                    #            scalars.append(('blend', 'add'))
+                                #except:
+                                #    print('ERROR: can\'t get texture image on %s.' % tex.texture.name)
+        #print ("texture list ",tex_list)
+        return tex_list
+
 
 class SimpleTextures():
 
