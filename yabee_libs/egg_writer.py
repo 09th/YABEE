@@ -172,7 +172,7 @@ class Group:
                 if normalized in ('collide', 'objecttype'):
                     vals = ('  ' * level, prop.name, prop.value)
                     egg_str += '%s<%s> { %s }\n' % vals
-                elif normalized in ('collide-mask', 'from-collide-mask', 'into-collide-mask', 'bin', 'draw-order'):
+                elif normalized in ('collide-mask', 'from-collide-mask', 'into-collide-mask', 'bin', 'draw-order', 'occluder', "portal"):
                     vals = ('  ' * level, prop.name, prop.value)
                     egg_str += '%s<Scalar> %s { %s }\n' % vals
                 elif normalized == 'file' and self.object.type == 'EMPTY':
