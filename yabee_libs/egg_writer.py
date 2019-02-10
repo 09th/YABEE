@@ -737,11 +737,12 @@ class EGGMeshObjectData(EGGBaseObjectData):
             
             
             matIsFancyPBRNode = False
-            if material.use_nodes: 
-                nodeTree = material.node_tree
-                if nodeTree.nodes.get("Panda3D_RP_Diffuse_Mat"):
-                    matIsFancyPBRNode = True
             if material:
+                if material.use_nodes:
+                    nodeTree = material.node_tree
+                    if nodeTree.nodes.get("Panda3D_RP_Diffuse_Mat"):
+                        matIsFancyPBRNode = True
+
                 # Check if the material has per-face textures enabled. If per-face textures
                 # are enabled, the material textures are ignored and only the active
                 # face textures are exported. Otherwise the per-face textures are completely
