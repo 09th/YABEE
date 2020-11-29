@@ -427,24 +427,42 @@ class EGGMeshObjectData(EGGBaseObjectData):
         if CALC_TBS == 'BLENDER':
             self.tangent_layers = self.pre_calc_TBS()
 
+        self.billboard_type = None
+
         # Check if we may need to generate ORCO coordinates.
         uses_nodes = False
         need_orco = False
         for f in self.obj_ref.data.polygons:
             if f.material_index >= len(obj.data.materials):
                 continue
-            if not obj.data.materials[f.material_index]:
+            material = obj.data.materials[f.material_index]
+            if not material:
                 continue
-            if obj.data.materials[f.material_index]:
-                if obj.data.materials[f.material_index].use_nodes:
-                    uses_nodes = True
-            for slot in obj.data.materials[f.material_index].texture_slots:
+            if material.use_nodes:
+                uses_nodes = True
+            if material.game_settings:
+                if material.game_settings.face_orientation == 'BILLBOARD':
+                    self.billboard_type = 'axis'
+                elif material.game_settings.face_orientation == 'HALO':
+                    self.billboard_type = 'point'
+            for slot in material.texture_slots:
                 if slot and slot.texture_coords == 'ORCO':
                     need_orco = True
                     break
 
         if (need_orco == True) and (uses_nodes == False):
             self.pre_calc_ORCO()
+
+        # Billboards use local coordinates in egg, plus we need to rotate since
+        # they face down the X axis in Blender.
+        if self.billboard_type:
+            self.vertex_matrix = Matrix(((0, 1, 0, 0), (-1, 0, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1)))
+
+            # Also remove the rotation component from the transform
+            loc, rot, scale = self.transform_matrix.decompose()
+            self.transform_matrix = Matrix(((scale[0], 0, 0, loc[0]), (0, scale[1], 0, loc[1]), (0, 0, scale[2], loc[2]), (0, 0, 0, 1)))
+        else:
+            self.vertex_matrix = self.obj_ref.matrix_world
 
         # Store current active UV name
         self.active_uv = None
@@ -578,7 +596,7 @@ class EGGMeshObjectData(EGGBaseObjectData):
 
         @return: list of vertex attributes.
         """
-        co = self.obj_ref.matrix_world * self.obj_ref.data.vertices[vidx].co
+        co = self.vertex_matrix * self.obj_ref.data.vertices[vidx].co
         attributes.append('%f %f %f' % co[:])
         return attributes
 
@@ -594,8 +612,8 @@ class EGGMeshObjectData(EGGBaseObjectData):
             for i in range(1,len(self.obj_ref.data.shape_keys.key_blocks)):
                 key = self.obj_ref.data.shape_keys.key_blocks[i]
                 vtx = self.obj_ref.data.vertices[vidx]
-                co = key.data[vidx].co * self.obj_ref.matrix_world - \
-                     vtx.co * self.obj_ref.matrix_world
+                co = key.data[vidx].co * self.vertex_matrix - \
+                     vtx.co * self.vertex_matrix
                 if co.length > 0.000001:
                     attributes.append('<Dxyz> %s { %f %f %f }\n' % \
                                       (eggSafeName(key.name), co[0], co[1], co[2]))
@@ -611,7 +629,7 @@ class EGGMeshObjectData(EGGBaseObjectData):
         @return: list of vertex attributes.
         """
         if idx in self.smooth_vtx_list:
-            no = self.obj_ref.matrix_world.to_euler().to_matrix() * self.obj_ref.data.vertices[v].normal
+            no = self.vertex_matrix.to_euler().to_matrix() * self.obj_ref.data.vertices[v].normal
             #no = self.obj_ref.data.vertices[v].normal
             #no = self.obj_ref.data.loops[idx].normal
             attributes.append('<Normal> { %f %f %f }' % no[:])
@@ -627,7 +645,7 @@ class EGGMeshObjectData(EGGBaseObjectData):
         @return: list of vertex attributes.
         """
         if idx in self.smooth_vtx_list:
-            no = self.obj_ref.matrix_world.to_euler().to_matrix() * self.obj_ref.data.loops[self.map_vertex_to_loop[v]].normal
+            no = self.vertex_matrix.to_euler().to_matrix() * self.obj_ref.data.loops[self.map_vertex_to_loop[v]].normal
             attributes.append('<Normal> { %f %f %f }' % no[:])
         return attributes
 
@@ -850,7 +868,7 @@ class EGGMeshObjectData(EGGBaseObjectData):
 
         @return: list of polygon's attributes.
         """
-        no = self.obj_ref.matrix_world.to_euler().to_matrix() * face.normal
+        no = self.vertex_matrix.to_euler().to_matrix() * face.normal
         #attributes.append('<Normal> {%s %s %s}' % (STRF(no[0]), STRF(no[1]), STRF(no[2])))
         attributes.append('<Normal> {%f %f %f}' % no[:])
         return attributes
@@ -942,9 +960,12 @@ class EGGMeshObjectData(EGGBaseObjectData):
     def get_full_egg_str(self):
         """ Return full mesh data representation in the EGG string syntax
         """
-        return '\n'.join((self.get_transform_str(),
-                        self.get_vtx_pool_str(),
-                        self.get_polygons_str()))
+        result = '\n'.join((self.get_transform_str(),
+                            self.get_vtx_pool_str(),
+                            self.get_polygons_str()))
+        if self.billboard_type:
+            result = '<Billboard> { %s }\n%s' % (self.billboard_type, result)
+        return result
 
 
 #-----------------------------------------------------------------------
