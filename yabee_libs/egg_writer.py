@@ -442,9 +442,8 @@ class EGGMeshObjectData(EGGBaseObjectData):
                 if slot and slot.texture_coords == 'ORCO':
                     need_orco = True
                     break
-        print("orcocheck",uses_nodes, need_orco)
+
         if (need_orco == True) and (uses_nodes == False):
-            print("starting orco calc")
             self.pre_calc_ORCO()
 
         # Store current active UV name
